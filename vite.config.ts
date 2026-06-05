@@ -17,6 +17,12 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+
+  server: {
+    port: 6690, 
+    open: true, // Abre el navegador automáticamente cuando inicia el servidor
+  },
+
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if
