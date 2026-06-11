@@ -278,7 +278,7 @@ export function HomePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
                 {[
                   { Icon: MapPin, title: 'Dirección', content: 'Calle 8 #12-45, San José del Guaviare\nGuaviare, Colombia' },
-                  { Icon: Phone, title: 'Teléfonos', content: '(608) 584-0000\n(608) 584-0001 (Ext. 102)' },
+                  { Icon: Phone, title: 'Teléfonos', content: '+57 *********\n+57 *********' },
                   { Icon: Mail, title: 'Correo Electrónico', content: 'rectoria@jcmutis.edu.co\nsecretaria@jcmutis.edu.co' },
                 ].map(({ Icon, title, content }) => (
                   <div key={title} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
@@ -293,11 +293,17 @@ export function HomePage() {
                 ))}
               </div>
 
-              <div style={{ borderRadius: '12px', overflow: 'hidden', height: '200px', backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}>
-                <MapPin size={32} style={{ color: '#006400' }} />
-                <span style={{ color: '#006400', fontSize: '15px', fontWeight: 700 }}>San José del Guaviare</span>
-                <span style={{ color: '#5A7A5A', fontSize: '13px' }}>Calle 8 #12-45</span>
-              </div>
+              <div style={{ borderRadius: '12px', overflow: 'hidden', height: '250px', border: '1px solid rgba(0,100,0,0.1)' }}>
+    <iframe 
+      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14095.75967167216!2d-72.65122506261227!3d2.5586275951603885!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e17769a18ff5b9d%3A0xa248bbbbb0ee26b4!2sColegio%20Jos%C3%A9%20Celestino%20Mutis!5e1!3m2!1ses-419!2sco!4v1780669704802!5m2!1ses-419!2sco" 
+      width="100%" 
+      height="100%" 
+      style={{ border: 0 }} 
+      allowFullScreen="" 
+      loading="lazy" 
+      referrerPolicy="no-referrer-when-downgrade"
+    />
+  </div>
             </div>
 
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '36px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>

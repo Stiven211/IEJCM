@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import {
   GraduationCap, LayoutDashboard, CalendarDays, LogOut,
   Plus, Edit2, Trash2, Search, X, Check, AlertTriangle, Eye,
 } from 'lucide-react'
-import { EVENTS, CATEGORY_LABELS, CATEGORY_COLORS, type Event } from '../data/events'
+import { supabase } from '../../lib/supabase'
+import type { Event } from '../types'
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/events'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -12,7 +14,7 @@ interface AdminDashboardProps {
 
 type ModalMode = 'create' | 'edit' | null
 
-const EMPTY_FORM: Omit<Event, 'id'> = {
+const EMPTY_FORM: Omit<Event, 'id' | 'created_at'> = {
   title: '',
   description: '',
   fullDescription: '',
@@ -35,17 +37,45 @@ function getStatus(dateStr: string) {
 
 export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const navigate = useNavigate()
-  const [events, setEvents] = useState<Event[]>([...EVENTS])
+  const [events, setEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
-  const [formData, setFormData] = useState<Omit<Event, 'id'>>(EMPTY_FORM)
+  const [formData, setFormData] = useState(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  const fetchEvents = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching events:', error)
+      showError('No se pudieron cargar los eventos. Intente de nuevo.')
+    } else {
+      setEvents(data || [])
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchEvents()
+  }, [])
 
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3500)
+    setTimeout(() => setSuccessMsg(''), 3000)
+  }
+
+  const showError = (msg: string) => {
+    setErrorMsg(msg)
+    setTimeout(() => setErrorMsg(''), 5000)
   }
 
   const openCreate = () => {
@@ -56,28 +86,58 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const openEdit = (event: Event) => {
     setEditingEvent(event)
-    setFormData({ title: event.title, description: event.description, fullDescription: event.fullDescription, date: event.date, time: event.time, endTime: event.endTime, location: event.location, category: event.category, image: event.image })
+    setFormData({
+      title: event.title,
+      description: event.description,
+      fullDescription: event.fullDescription || '',
+      date: event.date,
+      time: event.time,
+      endTime: event.endTime || '',
+      location: event.location,
+      category: event.category,
+      image: event.image || '',
+    })
     setModalMode('edit')
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (modalMode === 'create') {
-      setEvents(prev => [{ id: Date.now().toString(), ...formData }, ...prev])
-      showSuccess('Evento creado exitosamente.')
+      const { error } = await supabase.from('events').insert([formData])
+      if (error) {
+        console.error('Error creating event:', error)
+        showError('No se pudo crear el evento. Intente de nuevo.')
+      } else {
+        showSuccess('Evento creado exitosamente.')
+      }
     } else if (modalMode === 'edit' && editingEvent) {
-      setEvents(prev => prev.map(e => e.id === editingEvent.id ? { ...e, ...formData } : e))
-      showSuccess('Evento actualizado exitosamente.')
+      const { error } = await supabase
+        .from('events')
+        .update(formData)
+        .eq('id', editingEvent.id)
+      if (error) {
+        console.error('Error updating event:', error)
+        showError('No se pudo actualizar el evento. Intente de nuevo.')
+      } else {
+        showSuccess('Evento actualizado exitosamente.')
+      }
     }
     setModalMode(null)
+    fetchEvents()
   }
 
-  const handleDelete = (id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id))
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('events').delete().eq('id', id)
+    if (error) {
+      console.error('Error deleting event:', error)
+      showError('No se pudo eliminar el evento. Intente de nuevo.')
+    } else {
+      showSuccess('Evento eliminado correctamente.')
+    }
     setDeleteConfirmId(null)
-    showSuccess('Evento eliminado correctamente.')
+    fetchEvents()
   }
 
-  const updateField = <K extends keyof Omit<Event, 'id'>>(key: K, value: Omit<Event, 'id'>[K]) => {
+  const updateField = <K extends keyof Omit<Event, 'id' | 'created_at'>>(key: K, value: Omit<Event, 'id' | 'created_at'>[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
@@ -89,7 +149,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const stats = {
     total: events.length,
     upcoming: events.filter(e => new Date(e.date + 'T00:00:00') >= TODAY).length,
-    thisMonth: events.filter(e => { const d = new Date(e.date + 'T00:00:00'); return d.getFullYear() === 2026 && d.getMonth() === 5 }).length,
+    thisMonth: events.filter(e => {
+      const d = new Date(e.date + 'T00:00:00')
+      return d.getFullYear() === 2026 && d.getMonth() === 5
+    }).length,
     past: events.filter(e => new Date(e.date + 'T00:00:00') < TODAY).length,
   }
 
@@ -119,10 +182,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       {/* Sidebar */}
-      <div
-        className="hidden md:flex"
-        style={{ width: '240px', backgroundColor: '#006400', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}
-      >
+      <div className="hidden md:flex" style={{ width: '240px', backgroundColor: '#006400', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '28px 20px 22px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: 38, height: 38, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -195,11 +255,16 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         </div>
 
         <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
-          {successMsg && (
-            <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
-              <Check size={16} /> {successMsg}
-            </div>
-          )}
+{successMsg && (
+             <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
+               <Check size={16} /> {successMsg}
+             </div>
+           )}
+           {errorMsg && (
+             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
+               <AlertTriangle size={16} /> {errorMsg}
+             </div>
+           )}
 
           {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '24px' }}>
@@ -234,98 +299,104 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {/* Table */}
           <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#F8F8F8', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                    {['Título', 'Fecha', 'Categoría', 'Estado', 'Acciones'].map(col => (
-                      <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#5A7A5A', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#5A7A5A', fontSize: '14px' }}>
-                        No se encontraron eventos.
-                      </td>
+              {loading ? (
+                <div style={{ padding: '48px', textAlign: 'center', color: '#5A7A5A', fontSize: '14px' }}>
+                  Cargando eventos...
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#F8F8F8', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
+                      {['Título', 'Fecha', 'Categoría', 'Estado', 'Acciones'].map(col => (
+                        <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#5A7A5A', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
+                          {col}
+                        </th>
+                      ))}
                     </tr>
-                  ) : filtered.map((event, idx) => {
-                    const status = getStatus(event.date)
-                    const catColor = CATEGORY_COLORS[event.category]
-                    const eventDate = new Date(event.date + 'T00:00:00')
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#5A7A5A', fontSize: '14px' }}>
+                          No se encontraron eventos.
+                        </td>
+                      </tr>
+                    ) : filtered.map((event, idx) => {
+                      const status = getStatus(event.date)
+                      const catColor = CATEGORY_COLORS[event.category]
+                      const eventDate = new Date(event.date + 'T00:00:00')
 
-                    return deleteConfirmId === event.id ? (
-                      <tr key={event.id} style={{ backgroundColor: '#FEF2F2' }}>
-                        <td colSpan={5} style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <AlertTriangle size={15} style={{ color: '#DC2626', flexShrink: 0 }} />
-                            <span style={{ fontSize: '14px', color: '#1A1A1A', flex: 1 }}>
-                              ¿Eliminar <strong>"{event.title}"</strong>? Esta acción no se puede deshacer.
+                      return deleteConfirmId === event.id ? (
+                        <tr key={event.id} style={{ backgroundColor: '#FEF2F2' }}>
+                          <td colSpan={5} style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                              <AlertTriangle size={15} style={{ color: '#DC2626', flexShrink: 0 }} />
+                              <span style={{ fontSize: '14px', color: '#1A1A1A', flex: 1 }}>
+                                ¿Eliminar <strong>"{event.title}"</strong>? Esta acción no se puede deshacer.
+                              </span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.14)', backgroundColor: '#FFFFFF', color: '#1A1A1A', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  Cancelar
+                                </button>
+                                <button onClick={() => handleDelete(event.id)} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                                  Sí, eliminar
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr
+                          key={event.id}
+                          style={{ borderBottom: idx < filtered.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', transition: 'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = '#F9FBF9'}
+                          onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent'}
+                        >
+                          <td style={{ padding: '13px 16px' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</div>
+                            <div style={{ fontSize: '12px', color: '#5A7A5A', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</div>
+                          </td>
+                          <td style={{ padding: '13px 16px', fontSize: '14px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>
+                            {eventDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td style={{ padding: '13px 16px' }}>
+                            <span style={{ backgroundColor: catColor.bg, color: catColor.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                              {CATEGORY_LABELS[event.category]}
                             </span>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.14)', backgroundColor: '#FFFFFF', color: '#1A1A1A', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Cancelar
+                          </td>
+                          <td style={{ padding: '13px 16px' }}>
+                            <span style={{ backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                              {status.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: '13px 16px' }}>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                onClick={() => openEdit(event)}
+                                title="Editar"
+                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#006400', transition: 'all 0.15s' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#006400' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
+                              >
+                                <Edit2 size={14} />
                               </button>
-                              <button onClick={() => handleDelete(event.id)} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                Sí, eliminar
+                              <button
+                                onClick={() => setDeleteConfirmId(event.id)}
+                                title="Eliminar"
+                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#DC2626', transition: 'all 0.15s' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
+                              >
+                                <Trash2 size={14} />
                               </button>
                             </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr
-                        key={event.id}
-                        style={{ borderBottom: idx < filtered.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', transition: 'background 0.15s' }}
-                        onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = '#F9FBF9'}
-                        onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent'}
-                      >
-                        <td style={{ padding: '13px 16px' }}>
-                          <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</div>
-                          <div style={{ fontSize: '12px', color: '#5A7A5A', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</div>
-                        </td>
-                        <td style={{ padding: '13px 16px', fontSize: '14px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>
-                          {eventDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td style={{ padding: '13px 16px' }}>
-                          <span style={{ backgroundColor: catColor.bg, color: catColor.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            {CATEGORY_LABELS[event.category]}
-                          </span>
-                        </td>
-                        <td style={{ padding: '13px 16px' }}>
-                          <span style={{ backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            {status.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: '13px 16px' }}>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={() => openEdit(event)}
-                              title="Editar"
-                              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#006400', transition: 'all 0.15s' }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#006400' }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(event.id)}
-                              title="Eliminar"
-                              style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#DC2626', transition: 'all 0.15s' }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

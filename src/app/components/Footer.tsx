@@ -64,7 +64,7 @@ export function Footer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
                 { Icon: MapPin, text: 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia' },
-                { Icon: Phone, text: '(608) 584-0000\n(608) 584-0001 (Ext. 102)' },
+                { Icon: Phone, text: '+57 *********\n+57 *********' },
                 { Icon: Mail, text: 'rectoria@jcmutis.edu.co\nsecretaria@jcmutis.edu.co' },
               ].map(({ Icon, text }) => (
                 <div key={text} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
