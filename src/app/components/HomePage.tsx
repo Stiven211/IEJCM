@@ -7,11 +7,11 @@ import { EVENTS } from '../data/events'
 const TODAY = new Date('2026-06-01T00:00:00')
 
 const GALLERY_IMAGES = [
-  { src: 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=800&h=600&fit=crop&auto=format', alt: 'Estudiantes en el patio', large: true },
-  { src: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=500&h=300&fit=crop&auto=format', alt: 'Docente y estudiantes', large: false },
-  { src: 'https://images.unsplash.com/photo-1700914299961-d8f91559d85d?w=500&h=300&fit=crop&auto=format', alt: 'Actividades deportivas', large: false },
-  { src: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=500&h=300&fit=crop&auto=format', alt: 'Ceremonia de graduación', large: false },
-  { src: 'https://images.unsplash.com/photo-1561089489-f13d5e730d72?w=500&h=300&fit=crop&auto=format', alt: 'Aula de clases', large: false },
+  { src: "", alt: 'Estudiantes en el patio', large: true },
+  { src: "", alt: 'Docente y estudiantes', large: false },
+  { src: "", alt: 'Actividades deportivas', large: false },
+  { src: "", alt: 'Ceremonia de graduación', large: false },
+  { src: "", alt: 'Aula de clases', large: false },
 ]
 
 export function HomePage() {
@@ -62,7 +62,7 @@ export function HomePage() {
           alt="Estudiantes del colegio"
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.32 }}
         />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(140deg, rgba(0,30,0,0.96) 0%, rgba(0,80,0,0.72) 55%, rgba(0,40,0,0.88) 100%)' }} />
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(140deg, rgba(7,30,7,0.66) 0%, rgba(7,80,7,0.22) 55%, rgba(7,40,7,0.38) 100%)' }} />
 
         <div style={{ position: 'relative', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(80px,10vw,120px) 24px clamp(60px,8vw,80px)', color: '#FFFFFF' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '24px', padding: '8px 18px', marginBottom: '28px', backdropFilter: 'blur(6px)' }}>
@@ -83,7 +83,7 @@ export function HomePage() {
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
             <button
               onClick={() => navigate('/eventos')}
-              style={{ backgroundColor: '#FFFFFF', color: '#006400', border: 'none', padding: '15px 32px', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.01em', transition: 'all 0.2s', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}
+              style={{ backgroundColor: '#ffffffad', color: '#006400', border: 'none', padding: '15px 32px', borderRadius: '8px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.01em', transition: 'all 0.2s', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '8px' }}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'}
             >

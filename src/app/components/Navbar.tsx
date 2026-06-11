@@ -65,7 +65,12 @@ export function Navbar() {
             justifyContent: 'center',
             flexShrink: 0,
           }}>
-            <GraduationCap size={22} style={{ color: '#006400' }} />
+            <img src="src/assets/logo-IEJCM.png" alt="Logo" style={
+              {
+                width: 32,
+                height: 32,
+              }
+            } />
           </div>
           <div>
             <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
@@ -99,13 +104,13 @@ export function Navbar() {
                 onMouseEnter={e => {
                   if (!active) {
                     (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.1)'
-                    ;(e.currentTarget as HTMLButtonElement).style.color = '#FFFFFF'
+                      ; (e.currentTarget as HTMLButtonElement).style.color = '#FFFFFF'
                   }
                 }}
                 onMouseLeave={e => {
                   if (!active) {
                     (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
-                    ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'
+                      ; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'
                   }
                 }}
               >
@@ -116,7 +121,7 @@ export function Navbar() {
 
           <div style={{ width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 8px' }} />
 
-          
+
         </div>
 
         <button
@@ -166,24 +171,6 @@ export function Navbar() {
               {link.label}
             </button>
           ))}
-          <div style={{ padding: '12px 24px 0' }}>
-            <button
-              onClick={() => { navigate('/admin'); setMenuOpen(false) }}
-              style={{
-                width: '100%',
-                border: '1px solid rgba(255,255,255,0.35)',
-                color: '#FFFFFF',
-                backgroundColor: 'transparent',
-                padding: '11px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              Acceso Admin
-            </button>
-          </div>
         </div>
       )}
     </header>
