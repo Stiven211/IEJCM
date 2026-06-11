@@ -116,32 +116,7 @@ export function Navbar() {
 
           <div style={{ width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 8px' }} />
 
-          <button
-            onClick={() => navigate('/admin')}
-            style={{
-              border: '1px solid rgba(255,255,255,0.35)',
-              color: 'rgba(255,255,255,0.85)',
-              backgroundColor: 'transparent',
-              padding: '7px 16px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontFamily: 'inherit',
-              letterSpacing: '0.01em',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.12)'
-              ;(e.currentTarget as HTMLButtonElement).style.color = '#FFFFFF'
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
-              ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'
-            }}
-          >
-            Acceso Admin
-          </button>
+          
         </div>
 
         <button
