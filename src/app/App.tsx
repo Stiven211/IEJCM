@@ -7,6 +7,9 @@ import { EventsPage } from './components/EventsPage'
 import { EventDetailPage } from './components/EventDetailPage'
 import { AdminLogin } from './components/AdminLogin'
 import { AdminDashboard } from './components/AdminDashboard'
+import { GalleryAdminPage } from './components/admin/GalleryAdminPage'
+import { AnnouncementsPage } from './components/AnnouncementsPage'
+import { GalleryPage } from './components/GalleryPage'
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,6 +53,16 @@ export default function App() {
               : <AdminLogin onLogin={handleLogin} />
           }
         />
+        <Route
+          path="/admin/gallery"
+          element={
+            isAdmin
+              ? <GalleryAdminPage onLogout={handleLogout} />
+              : <AdminLogin onLogin={handleLogin} />
+          }
+        />
+        <Route path="/avisos" element={<Layout><AnnouncementsPage /></Layout>} />
+        <Route path="/galeria" element={<Layout><GalleryPage /></Layout>} />
         <Route path="*" element={<Layout><HomePage /></Layout>} />
       </Routes>
     </BrowserRouter>

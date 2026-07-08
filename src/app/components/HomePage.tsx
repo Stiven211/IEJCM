@@ -58,7 +58,7 @@ export function HomePage() {
     .slice(0, 6)
 
   const activeAnnouncements = announcements
-    .filter(a => a.is_published !== false)
+    .filter(a => a.active !== false)
     .slice(0, 3)
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -178,7 +178,7 @@ export function HomePage() {
                 </h2>
               </div>
               <button
-                onClick={() => {}}
+                onClick={() => navigate('/avisos')}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'transparent', color: '#991B1B', border: '1.5px solid #991B1B', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
                 onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.backgroundColor = '#991B1B'; b.style.color = '#FFFFFF' }}
                 onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.backgroundColor = 'transparent'; b.style.color = '#991B1B' }}
@@ -237,7 +237,7 @@ export function HomePage() {
              </div>
 
              <button
-               onClick={() => {}}
+               onClick={() => document.getElementById('sobre-nosotros')?.scrollIntoView({ behavior: 'smooth' })}
                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '8px' }}
                onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
                onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
@@ -303,7 +303,7 @@ export function HomePage() {
               Nuestra Comunidad en Imágenes
             </h2>
             <button
-              onClick={() => {}}
+              onClick={() => navigate('/galeria')}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '24px' }}
               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
