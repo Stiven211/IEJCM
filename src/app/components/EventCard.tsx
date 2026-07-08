@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { MapPin, Clock } from 'lucide-react'
-import type { Event } from '../data/events'
+import type { Event } from '../types'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/events'
 
 interface EventCardProps {

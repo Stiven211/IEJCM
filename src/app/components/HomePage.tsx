@@ -1,28 +1,65 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { ChevronDown, BookOpen, Users, Award, TrendingUp, ArrowRight, MapPin, Phone, Mail, Send, Check } from 'lucide-react'
 import { EventCard } from './EventCard'
+import * as eventService from '../../services/event.service'
+import * as galleryService from '../../services/gallery.service'
+import * as announcementService from '../../services/announcement.service'
 import { EVENTS } from '../data/events'
 
-const TODAY = new Date('2026-06-01T00:00:00')
-
-const GALLERY_IMAGES = [
-  { src: 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=800&h=600&fit=crop&auto=format', alt: 'Estudiantes en el patio', large: true },
-  { src: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=500&h=300&fit=crop&auto=format', alt: 'Docente y estudiantes', large: false },
-  { src: 'https://images.unsplash.com/photo-1700914299961-d8f91559d85d?w=500&h=300&fit=crop&auto=format', alt: 'Actividades deportivas', large: false },
-  { src: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=500&h=300&fit=crop&auto=format', alt: 'Ceremonia de graduación', large: false },
-  { src: 'https://images.unsplash.com/photo-1561089489-f13d5e730d72?w=500&h=300&fit=crop&auto=format', alt: 'Aula de clases', large: false },
+const FALLBACK_GALLERY: galleryService.GalleryItem[] = [
+  { id: 'fb1', title: 'Estudiantes en el patio', description: '', image_url: 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=800&h=600&fit=crop&auto=format', category: '', display_order: 1, created_at: '' },
+  { id: 'fb2', title: 'Docente y estudiantes', description: '', image_url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=500&h=300&fit=crop&auto=format', category: '', display_order: 2, created_at: '' },
+  { id: 'fb3', title: 'Actividades deportivas', description: '', image_url: 'https://images.unsplash.com/photo-1700914299961-d8f91559d85d?w=500&h=300&fit=crop&auto=format', category: '', display_order: 3, created_at: '' },
+  { id: 'fb4', title: 'Ceremonia de graduación', description: '', image_url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=500&h=300&fit=crop&auto=format', category: '', display_order: 4, created_at: '' },
+  { id: 'fb5', title: 'Aula de clases', description: '', image_url: 'https://images.unsplash.com/photo-1561089489-f13d5e730d72?w=500&h=300&fit=crop&auto=format', category: '', display_order: 5, created_at: '' },
+  { id: 'fb6', title: 'Festival Cultural', description: '', image_url: 'https://images.unsplash.com/photo-1719241368157-7c78535f3a92?w=500&h=300&fit=crop&auto=format', category: '', display_order: 6, created_at: '' },
 ]
 
 export function HomePage() {
   const navigate = useNavigate()
-  const upcomingEvents = EVENTS
-    .filter(e => new Date(e.date + 'T00:00:00') >= TODAY)
+  const [events, setEvents] = useState<eventService.Event[]>([])
+  const [gallery, setGallery] = useState<galleryService.GalleryItem[]>([])
+  const [announcements, setAnnouncements] = useState<announcementService.Announcement[]>([])
+  const [form, setForm] = useState({ name: '', email: '', message: '' })
+  const [sent, setSent] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [ev, gal, ann] = await Promise.all([
+          eventService.getAllEvents(),
+          galleryService.getAllGalleryItems(),
+          announcementService.getAllAnnouncements(),
+        ])
+        setEvents(ev.length ? ev : EVENTS)
+        setGallery(gal.length ? gal : FALLBACK_GALLERY)
+        setAnnouncements(ann)
+      } catch (err) {
+        console.error('Error cargando datos del Home:', err)
+        setEvents(EVENTS)
+        setGallery(FALLBACK_GALLERY)
+        setAnnouncements([])
+      }
+    }
+    load()
+  }, [])
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const upcomingEvents = events
+    .filter(e => new Date(e.date + 'T00:00:00') >= today)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3)
 
-  const [form, setForm] = useState({ name: '', email: '', message: '' })
-  const [sent, setSent] = useState(false)
+  const recentGallery = gallery
+    .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+    .slice(0, 6)
+
+  const activeAnnouncements = announcements
+    .filter(a => a.is_published !== false)
+    .slice(0, 3)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,6 +164,44 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* ── AVISOS IMPORTANTES ── */}
+      {activeAnnouncements.length > 0 && (
+        <section style={{ padding: 'clamp(48px, 7vw, 80px) 24px', backgroundColor: '#FFFFFF' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'inline-block', backgroundColor: '#FEF2F2', color: '#991B1B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 14px', borderRadius: '20px', marginBottom: '12px' }}>
+                  Avisos importantes
+                </div>
+                <h2 style={{ fontSize: 'clamp(24px, 3vw, 34px)', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.02em', margin: 0 }}>
+                  Mantente informado
+                </h2>
+              </div>
+              <button
+                onClick={() => {}}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'transparent', color: '#991B1B', border: '1.5px solid #991B1B', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
+                onMouseEnter={e => { const b = e.currentTarget as HTMLButtonElement; b.style.backgroundColor = '#991B1B'; b.style.color = '#FFFFFF' }}
+                onMouseLeave={e => { const b = e.currentTarget as HTMLButtonElement; b.style.backgroundColor = 'transparent'; b.style.color = '#991B1B' }}
+              >
+                Ver todos <ArrowRight size={15} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              {activeAnnouncements.map(ann => (
+                <div key={ann.id} style={{ backgroundColor: '#F8F8F8', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '10px', padding: '20px' }}>
+                  <div style={{ fontSize: '13px', color: '#5A7A5A', marginBottom: '8px' }}>
+                    {ann.published_at ? new Date(ann.published_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date(ann.created_at || '').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.35 }}>{ann.title}</h3>
+                  <p style={{ fontSize: '14px', color: '#4A5E4A', lineHeight: 1.7, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ann.content}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── SOBRE NOSOTROS ── */}
       <section id="sobre-nosotros" style={{ padding: 'clamp(64px, 9vw, 108px) 24px', backgroundColor: '#FFFFFF' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '64px', alignItems: 'center' }}>
@@ -139,28 +214,37 @@ export function HomePage() {
               <span style={{ color: '#006400' }}>de la Amazonía</span>
             </h2>
             <p style={{ color: '#4A5E4A', lineHeight: 1.85, marginBottom: '18px', fontSize: '16px' }}>
-              Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.
+              xxx
             </p>
             <p style={{ color: '#4A5E4A', lineHeight: 1.85, marginBottom: '32px', fontSize: '16px' }}>
-              Con énfasis en ciencias naturales y educación ambiental, preparamos a nuestros estudiantes para enfrentar los desafíos del siglo XXI con valores sólidos, sentido crítico y amor por nuestra Amazonía.
+             xxx
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {[
-                { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
-                { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
-                { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
-                { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Icon size={17} style={{ color: '#006400' }} />
-                  </div>
-                  <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+               {[
+                 { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
+                 { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
+                 { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
+                 { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
+               ].map(({ icon: Icon, text }) => (
+                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                   <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                     <Icon size={17} style={{ color: '#006400' }} />
+                   </div>
+                   <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
+                 </div>
+               ))}
+             </div>
+
+             <button
+               onClick={() => {}}
+               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '8px' }}
+               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
+               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
+             >
+               Conocer más <ArrowRight size={15} />
+             </button>
+           </div>
 
           <div style={{ position: 'relative' }}>
             <div style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: '#E8F5E9' }}>
@@ -218,12 +302,20 @@ export function HomePage() {
             <h2 style={{ fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 800, color: '#1A1A1A', letterSpacing: '-0.02em', margin: 0 }}>
               Nuestra Comunidad en Imágenes
             </h2>
+            <button
+              onClick={() => {}}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '24px' }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
+            >
+              Ver galería <ArrowRight size={15} />
+            </button>
           </div>
 
           <div className="jcm-gallery">
-            {GALLERY_IMAGES.map((img, i) => (
-              <div key={i} className={img.large ? 'jcm-gallery-large' : ''} style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#E8F5E9', minHeight: '220px' }}>
-                <img src={img.src} alt={img.alt} className="gallery-img" style={{ minHeight: '220px' }} />
+            {recentGallery.map((item, i) => (
+              <div key={item.id} className={i === 0 ? 'jcm-gallery-large' : ''} style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#E8F5E9', minHeight: '220px' }}>
+                <img src={item.image_url} alt={item.title} className="gallery-img" style={{ minHeight: '220px' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
             ))}
           </div>
