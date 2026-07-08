@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { Navbar } from './components/Navbar'
@@ -8,6 +9,7 @@ import { EventDetailPage } from './components/EventDetailPage'
 import { AdminLogin } from './components/AdminLogin'
 import { AdminDashboard } from './components/AdminDashboard'
 import { GalleryAdminPage } from './components/admin/GalleryAdminPage'
+import { AnnouncementAdminPage } from './components/admin/AnnouncementAdminPage'
 import { AnnouncementsPage } from './components/AnnouncementsPage'
 import { GalleryPage } from './components/GalleryPage'
 
@@ -61,6 +63,14 @@ export default function App() {
               : <AdminLogin onLogin={handleLogin} />
           }
         />
+        <Route
+          path="/admin/announcements"
+          element={
+            isAdmin
+              ? <AnnouncementAdminPage onLogout={handleLogout} />
+              : <AdminLogin onLogin={handleLogin} />
+          }
+        />
         <Route path="/avisos" element={<Layout><AnnouncementsPage /></Layout>} />
         <Route path="/galeria" element={<Layout><GalleryPage /></Layout>} />
         <Route path="*" element={<Layout><HomePage /></Layout>} />
@@ -68,3 +78,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
