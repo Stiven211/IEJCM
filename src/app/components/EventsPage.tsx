@@ -1,41 +1,64 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { Search, Calendar } from 'lucide-react'
 import { EventCard } from './EventCard'
-import { EVENTS } from '../data/events'
+import * as eventService from '../../services/event.service'
+import type { Event } from '../types'
 
 type FilterTab = 'upcoming' | 'this-month' | 'past'
 
-const TODAY = new Date('2026-06-01T00:00:00')
-
 export function EventsPage() {
   const navigate = useNavigate()
+  const [allEvents, setAllEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await eventService.getAllEvents()
+        setAllEvents(data)
+      } catch (err) {
+        console.error('Error cargando eventos:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const today = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+
   const counts = useMemo(() => ({
-    upcoming: EVENTS.filter(e => new Date(e.date + 'T00:00:00') >= TODAY).length,
-    'this-month': EVENTS.filter(e => {
+    upcoming: allEvents.filter(e => new Date(e.date + 'T00:00:00') >= today).length,
+    'this-month': allEvents.filter(e => {
       const d = new Date(e.date + 'T00:00:00')
-      return d.getFullYear() === 2026 && d.getMonth() === 5
+      const now = new Date()
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
     }).length,
-    past: EVENTS.filter(e => new Date(e.date + 'T00:00:00') < TODAY).length,
-  }), [])
+    past: allEvents.filter(e => new Date(e.date + 'T00:00:00') < today).length,
+  }), [allEvents, today])
 
   const filteredEvents = useMemo(() => {
-    let list = [...EVENTS]
+    let list = [...allEvents]
 
     if (activeFilter === 'upcoming') {
-      list = list.filter(e => new Date(e.date + 'T00:00:00') >= TODAY)
+      list = list.filter(e => new Date(e.date + 'T00:00:00') >= today)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     } else if (activeFilter === 'this-month') {
       list = list.filter(e => {
         const d = new Date(e.date + 'T00:00:00')
-        return d.getFullYear() === 2026 && d.getMonth() === 5
+        const now = new Date()
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
       }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     } else {
-      list = list.filter(e => new Date(e.date + 'T00:00:00') < TODAY)
+      list = list.filter(e => new Date(e.date + 'T00:00:00') < today)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     }
 
@@ -53,7 +76,7 @@ export function EventsPage() {
     }
 
     return list
-  }, [activeFilter, searchQuery, categoryFilter])
+  }, [allEvents, activeFilter, searchQuery, categoryFilter, today])
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: 'upcoming', label: 'Próximos' },
@@ -146,7 +169,9 @@ export function EventsPage() {
           {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''} encontrado{filteredEvents.length !== 1 ? 's' : ''}
         </div>
 
-        {filteredEvents.length > 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '80px 24px', color: '#5A7A5A' }}>Cargando eventos...</div>
+        ) : filteredEvents.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             {filteredEvents.map(event => (
               <EventCard key={event.id} event={event} onClick={() => navigate(`/eventos/${event.id}`)} />

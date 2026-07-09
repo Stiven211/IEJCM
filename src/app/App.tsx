@@ -10,6 +10,7 @@ import { AdminLogin } from './components/AdminLogin'
 import { AdminDashboard } from './components/AdminDashboard'
 import { GalleryAdminPage } from './components/admin/GalleryAdminPage'
 import { AnnouncementAdminPage } from './components/admin/AnnouncementAdminPage'
+import { SchoolInfoAdminPage } from './components/admin/SchoolInfoAdminPage'
 import { AnnouncementsPage } from './components/AnnouncementsPage'
 import { GalleryPage } from './components/GalleryPage'
 
@@ -68,6 +69,14 @@ export default function App() {
           element={
             isAdmin
               ? <AnnouncementAdminPage onLogout={handleLogout} />
+              : <AdminLogin onLogin={handleLogin} />
+          }
+        />
+        <Route
+          path="/admin/school-info"
+          element={
+            isAdmin
+              ? <SchoolInfoAdminPage onLogout={handleLogout} />
               : <AdminLogin onLogin={handleLogin} />
           }
         />

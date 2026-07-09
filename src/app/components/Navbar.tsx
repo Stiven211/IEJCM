@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import { Menu, X, GraduationCap } from 'lucide-react'
+import * as schoolInfoService from '../../services/schoolInfo.service'
 
 const NAV_LINKS = [
   { to: '/', label: 'Inicio', isHash: false },
@@ -11,8 +12,17 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [schoolName, setSchoolName] = useState('Colegio José Celestino Mutis')
   const navigate = useNavigate()
   const location = useLocation()
+
+  useEffect(() => {
+    let cancelled = false
+    schoolInfoService.getSchoolInfo().then(data => {
+      if (!cancelled && data?.school_name) setSchoolName(data.school_name)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   const handleNavClick = (to: string, isHash?: boolean) => {
     setMenuOpen(false)
@@ -69,7 +79,7 @@ export function Navbar() {
           </div>
           <div>
             <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
-              Colegio José Celestino Mutis
+              {schoolName}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '11px', letterSpacing: '0.04em' }}>
               San José del Guaviare · Est. 1978

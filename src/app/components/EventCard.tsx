@@ -1,7 +1,8 @@
+
 import { useState } from 'react'
 import { MapPin, Clock } from 'lucide-react'
 import type { Event } from '../types'
-import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/events'
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
 
 interface EventCardProps {
   event: Event
@@ -147,3 +148,4 @@ export function EventCard({ event, onClick }: EventCardProps) {
     </div>
   )
 }
+

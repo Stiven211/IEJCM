@@ -1,12 +1,17 @@
+
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import {
   GraduationCap, LayoutDashboard, CalendarDays, LogOut,
-  Plus, Edit2, Trash2, Search, X, Check, AlertTriangle, Eye,
+  Edit2, Trash2, Search, Check, AlertTriangle,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
-import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/events'
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
+import { AdminSidebar } from './admin/AdminSidebar'
+import { AdminHeader } from './admin/AdminHeader'
+import { AdminDataTable } from './admin/AdminDataTable'
+import { AdminModal } from './admin/AdminModal'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -49,19 +54,15 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const fetchEvents = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('date', { ascending: true })
-
-    if (error) {
-      console.error('Error fetching events:', error)
+    try {
+      const data = await eventService.getAllEvents()
+      setEvents(data)
+    } catch (err) {
+      console.error('Error fetching events:', err)
       showError('No se pudieron cargar los eventos. Intente de nuevo.')
-    } else {
-      setEvents(data || [])
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -101,37 +102,29 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   }
 
   const handleSave = async () => {
-    if (modalMode === 'create') {
-      const { error } = await supabase.from('events').insert([formData])
-      if (error) {
-        console.error('Error creating event:', error)
-        showError('No se pudo crear el evento. Intente de nuevo.')
-      } else {
+    try {
+      if (modalMode === 'create') {
+        await eventService.createEvent(formData)
         showSuccess('Evento creado exitosamente.')
-      }
-    } else if (modalMode === 'edit' && editingEvent) {
-      const { error } = await supabase
-        .from('events')
-        .update(formData)
-        .eq('id', editingEvent.id)
-      if (error) {
-        console.error('Error updating event:', error)
-        showError('No se pudo actualizar el evento. Intente de nuevo.')
-      } else {
+      } else if (modalMode === 'edit' && editingEvent) {
+        await eventService.updateEvent(editingEvent.id, formData)
         showSuccess('Evento actualizado exitosamente.')
       }
+    } catch (err) {
+      console.error('Error saving event:', err)
+      showError('No se pudo guardar el evento. Intente de nuevo.')
     }
     setModalMode(null)
     fetchEvents()
   }
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from('events').delete().eq('id', id)
-    if (error) {
-      console.error('Error deleting event:', error)
-      showError('No se pudo eliminar el evento. Intente de nuevo.')
-    } else {
+    try {
+      await eventService.removeEvent(id)
       showSuccess('Evento eliminado correctamente.')
+    } catch (err) {
+      console.error('Error deleting event:', err)
+      showError('No se pudo eliminar el evento. Intente de nuevo.')
     }
     setDeleteConfirmId(null)
     fetchEvents()
@@ -181,90 +174,38 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
-      {/* Sidebar */}
-      <div className="hidden md:flex" style={{ width: '240px', backgroundColor: '#006400', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
-        <div style={{ padding: '28px 20px 22px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: 38, height: 38, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <GraduationCap size={20} color="#FFFFFF" />
-            </div>
-            <div>
-              <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '13px', lineHeight: 1.3 }}>Admin Panel</div>
-              <div style={{ color: 'rgba(255,255,255,0.48)', fontSize: '11px' }}>J.C. Mutis</div>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '16px 12px', flex: 1 }}>
-          {[
-            { icon: LayoutDashboard, label: 'Dashboard', active: true },
-            { icon: CalendarDays, label: 'Eventos', active: false },
-          ].map(({ icon: Icon, label, active }) => (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', borderRadius: '8px', backgroundColor: active ? 'rgba(255,255,255,0.14)' : 'transparent', color: active ? '#FFFFFF' : 'rgba(255,255,255,0.56)', marginBottom: '2px', cursor: 'pointer', fontSize: '14px', fontWeight: active ? 600 : 400, transition: 'background 0.2s' }}>
-              <Icon size={16} />
-              {label}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ padding: '14px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', marginBottom: '6px' }}>
-            <div style={{ width: 32, height: 32, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <span style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 700 }}>A</span>
-            </div>
-            <div>
-              <div style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>Administrador</div>
-              <div style={{ color: 'rgba(255,255,255,0.44)', fontSize: '11px' }}>admin@jcmutis.edu.co</div>
-            </div>
-          </div>
-          <button
-            onClick={() => { onLogout(); navigate('/') }}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', borderRadius: '8px', backgroundColor: 'rgba(220,38,38,0.12)', color: 'rgba(248,113,113,0.9)', border: 'none', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
-            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(220,38,38,0.2)'}
-            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(220,38,38,0.12)'}
-          >
-            <LogOut size={14} /> Cerrar Sesión
-          </button>
-        </div>
-      </div>
+      <AdminSidebar
+        sections={[
+          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Galería', icon: Image, to: '/admin/gallery' },
+          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
+          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
+        ]}
+        user={{ initials: 'A', name: 'Administrador', email: 'admin@jcmutis.edu.co' }}
+        onLogout={onLogout}
+      />
 
       {/* Main */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-        {/* Header */}
-        <div style={{ backgroundColor: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '18px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', position: 'sticky', top: 0, zIndex: 10 }}>
-          <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 800, color: '#1A1A1A', margin: '0 0 2px', letterSpacing: '-0.01em' }}>Panel de Eventos</h1>
-            <p style={{ color: '#5A7A5A', fontSize: '13px', margin: 0 }}>Colegio José Celestino Mutis · San José del Guaviare</p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button
-              onClick={() => navigate('/')}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'transparent', color: '#5A7A5A', border: '1px solid rgba(0,0,0,0.1)', padding: '8px 14px', borderRadius: '7px', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <Eye size={14} /> Ver sitio
-            </button>
-            <button
-              onClick={openCreate}
-              style={{ display: 'flex', alignItems: 'center', gap: '7px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '9px 18px', borderRadius: '7px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
-              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
-              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
-            >
-              <Plus size={16} /> Nuevo Evento
-            </button>
-          </div>
-        </div>
+        <AdminHeader
+          title="Panel de Eventos"
+          primaryButtonText="Nuevo Evento"
+          onPrimaryAction={openCreate}
+          onViewSite={() => navigate('/')}
+        />
 
         <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
-{successMsg && (
-             <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
-               <Check size={16} /> {successMsg}
-             </div>
-           )}
-           {errorMsg && (
-             <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
-               <AlertTriangle size={16} /> {errorMsg}
-             </div>
-           )}
+          {successMsg && (
+            <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
+              <Check size={16} /> {successMsg}
+            </div>
+          )}
+          {errorMsg && (
+            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
+              <AlertTriangle size={16} /> {errorMsg}
+            </div>
+          )}
 
           {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '24px' }}>
@@ -297,213 +238,98 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           </div>
 
           {/* Table */}
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
-              {loading ? (
-                <div style={{ padding: '48px', textAlign: 'center', color: '#5A7A5A', fontSize: '14px' }}>
-                  Cargando eventos...
-                </div>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '620px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#F8F8F8', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-                      {['Título', 'Fecha', 'Categoría', 'Estado', 'Acciones'].map(col => (
-                        <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '11px', fontWeight: 700, color: '#5A7A5A', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#5A7A5A', fontSize: '14px' }}>
-                          No se encontraron eventos.
-                        </td>
-                      </tr>
-                    ) : filtered.map((event, idx) => {
-                      const status = getStatus(event.date)
-                      const catColor = CATEGORY_COLORS[event.category]
-                      const eventDate = new Date(event.date + 'T00:00:00')
+          <AdminDataTable
+            columns={[
+              { key: 'title', header: 'Título', render: (event: Event) => (<div> <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</div> <div style={{ fontSize: '12px', color: '#5A7A5A', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</div> </div>) },
+              { key: 'date', header: 'Fecha', render: (event: Event) => { const eventDate = new Date(event.date + 'T00:00:00'); return <div style={{ fontSize: '14px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>{eventDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>; } },
+              { key: 'category', header: 'Categoría', render: (event: Event) => { const catColor = CATEGORY_COLORS[event.category]; return <span style={{ backgroundColor: catColor.bg, color: catColor.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{CATEGORY_LABELS[event.category]}</span>; } },
+              { key: 'status', header: 'Estado', render: (event: Event) => { const status = getStatus(event.date); return <span style={{ backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{status.label}</span>; } },
+            ]}
+            data={filtered}
+            loading={loading}
+            emptyMessage="No se encontraron eventos."
+            loadingMessage="Cargando eventos..."
+            getItemKey={(item) => item.id}
+            onEdit={openEdit}
+            onDeleteRequest={setDeleteConfirmId}
+            onDeleteConfirmed={handleDelete}
+            onDeleteCancelled={() => setDeleteConfirmId(null)}
+            deleteConfirmId={deleteConfirmId}
+          />
+        </div>
 
-                      return deleteConfirmId === event.id ? (
-                        <tr key={event.id} style={{ backgroundColor: '#FEF2F2' }}>
-                          <td colSpan={5} style={{ padding: '14px 16px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                              <AlertTriangle size={15} style={{ color: '#DC2626', flexShrink: 0 }} />
-                              <span style={{ fontSize: '14px', color: '#1A1A1A', flex: 1 }}>
-                                ¿Eliminar <strong>"{event.title}"</strong>? Esta acción no se puede deshacer.
-                              </span>
-                              <div style={{ display: 'flex', gap: '8px' }}>
-                                <button onClick={() => setDeleteConfirmId(null)} style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.14)', backgroundColor: '#FFFFFF', color: '#1A1A1A', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                                  Cancelar
-                                </button>
-                                <button onClick={() => handleDelete(event.id)} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                                  Sí, eliminar
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        <tr
-                          key={event.id}
-                          style={{ borderBottom: idx < filtered.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', transition: 'background 0.15s' }}
-                          onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = '#F9FBF9'}
-                          onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent'}
-                        >
-                          <td style={{ padding: '13px 16px' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</div>
-                            <div style={{ fontSize: '12px', color: '#5A7A5A', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</div>
-                          </td>
-                          <td style={{ padding: '13px 16px', fontSize: '14px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>
-                            {eventDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          </td>
-                          <td style={{ padding: '13px 16px' }}>
-                            <span style={{ backgroundColor: catColor.bg, color: catColor.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                              {CATEGORY_LABELS[event.category]}
-                            </span>
-                          </td>
-                          <td style={{ padding: '13px 16px' }}>
-                            <span style={{ backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                              {status.label}
-                            </span>
-                          </td>
-                          <td style={{ padding: '13px 16px' }}>
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <button
-                                onClick={() => openEdit(event)}
-                                title="Editar"
-                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#006400', transition: 'all 0.15s' }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#006400' }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirmId(event.id)}
-                                title="Eliminar"
-                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#DC2626', transition: 'all 0.15s' }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FFFFFF'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,0,0,0.1)' }}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              )}
+        {/* Create / Edit Modal */}
+        <AdminModal
+          open={!!modalMode}
+          title={modalMode === 'create' ? '+ Crear Nuevo Evento' : 'Editar Evento'}
+          onClose={() => setModalMode(null)}
+          onSave={handleSave}
+          saveLabel={modalMode === 'create' ? 'Crear Evento' : 'Guardar Cambios'}
+          cancelLabel="Cancelar"
+          saving={false}
+        >
+          {/* Title */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título del evento *</label>
+            <input type="text" value={formData.title} onChange={e => updateField('title', e.target.value)} placeholder="Ej: Feria de la Ciencia 2026" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+          </div>
+
+          {/* Short description */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción breve *</label>
+            <textarea value={formData.description} onChange={e => updateField('description', e.target.value)} placeholder="Resumen del evento (máx. 150 caracteres)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+          </div>
+
+          {/* Full description */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción completa</label>
+            <textarea value={formData.fullDescription} onChange={e => updateField('fullDescription', e.target.value)} placeholder="Descripción detallada del evento. Puedes usar líneas en blanco para separar párrafos." rows={6} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+          </div>
+
+          {/* Date, Time, End Time */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Fecha *</label>
+              <input type="date" value={formData.date} onChange={e => updateField('date', e.target.value)} style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora inicio *</label>
+              <input type="text" value={formData.time} onChange={e => updateField('time', e.target.value)} placeholder="8:00 AM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora fin</label>
+              <input type="text" value={formData.endTime} onChange={e => updateField('endTime', e.target.value)} placeholder="12:00 PM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
             </div>
           </div>
-        </div>
+
+          {/* Location + Category */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Ubicación *</label>
+              <input type="text" value={formData.location} onChange={e => updateField('location', e.target.value)} placeholder="Ej: Patio Central de la Institución" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
+              <select value={formData.category} onChange={e => updateField('category', e.target.value as Event['category'])} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+                <option value="academic">Académico</option>
+                <option value="cultural">Cultural</option>
+                <option value="sports">Deportivo</option>
+                <option value="institutional">Institucional</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Image URL */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>URL de imagen</label>
+            <input type="url" value={formData.image} onChange={e => updateField('image', e.target.value)} placeholder="https://images.unsplash.com/..." style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+            {formData.image && (
+              <div style={{ marginTop: '8px', borderRadius: '7px', overflow: 'hidden', height: '110px', backgroundColor: '#E8F5E9' }}>
+                <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+              </div>
+            )}
+          </div>
+        </AdminModal>
       </div>
-
-      {/* Create / Edit Modal */}
-      {modalMode && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
-            <div style={{ padding: '22px 28px', borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, backgroundColor: '#FFFFFF', zIndex: 1 }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1A1A1A', margin: 0, letterSpacing: '-0.01em' }}>
-                {modalMode === 'create' ? '+ Crear Nuevo Evento' : 'Editar Evento'}
-              </h2>
-              <button
-                onClick={() => setModalMode(null)}
-                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: 'none', backgroundColor: '#F0F4F0', cursor: 'pointer', color: '#5A7A5A' }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div style={{ padding: '28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* Title */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título del evento *</label>
-                <input type="text" value={formData.title} onChange={e => updateField('title', e.target.value)} placeholder="Ej: Feria de la Ciencia 2026" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-              </div>
-
-              {/* Short description */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción breve *</label>
-                <textarea value={formData.description} onChange={e => updateField('description', e.target.value)} placeholder="Resumen del evento (máx. 150 caracteres)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
-              </div>
-
-              {/* Full description */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción completa</label>
-                <textarea value={formData.fullDescription} onChange={e => updateField('fullDescription', e.target.value)} placeholder="Descripción detallada del evento. Puedes usar líneas en blanco para separar párrafos." rows={6} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
-              </div>
-
-              {/* Date, Time, End Time */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Fecha *</label>
-                  <input type="date" value={formData.date} onChange={e => updateField('date', e.target.value)} style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora inicio *</label>
-                  <input type="text" value={formData.time} onChange={e => updateField('time', e.target.value)} placeholder="8:00 AM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora fin</label>
-                  <input type="text" value={formData.endTime} onChange={e => updateField('endTime', e.target.value)} placeholder="12:00 PM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-                </div>
-              </div>
-
-              {/* Location + Category */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Ubicación *</label>
-                  <input type="text" value={formData.location} onChange={e => updateField('location', e.target.value)} placeholder="Ej: Patio Central de la Institución" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
-                  <select value={formData.category} onChange={e => updateField('category', e.target.value as Event['category'])} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
-                    <option value="academic">Académico</option>
-                    <option value="cultural">Cultural</option>
-                    <option value="sports">Deportivo</option>
-                    <option value="institutional">Institucional</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Image URL */}
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>URL de imagen</label>
-                <input type="url" value={formData.image} onChange={e => updateField('image', e.target.value)} placeholder="https://images.unsplash.com/..." style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-                {formData.image && (
-                  <div style={{ marginTop: '8px', borderRadius: '7px', overflow: 'hidden', height: '110px', backgroundColor: '#E8F5E9' }}>
-                    <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: '1px solid rgba(0,0,0,0.07)', marginTop: '4px' }}>
-                <button
-                  onClick={() => setModalMode(null)}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.13)', backgroundColor: '#FFFFFF', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!isFormValid}
-                  style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', backgroundColor: isFormValid ? '#006400' : '#CCCCCC', color: '#FFFFFF', fontSize: '14px', fontWeight: 600, cursor: isFormValid ? 'pointer' : 'not-allowed', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '7px', transition: 'background 0.2s' }}
-                  onMouseEnter={e => { if (isFormValid) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22' }}
-                  onMouseLeave={e => { if (isFormValid) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400' }}
-                >
-                  <Check size={15} />
-                  {modalMode === 'create' ? 'Crear Evento' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+      )
+      </div>)}

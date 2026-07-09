@@ -1,0 +1,273 @@
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router'
+import { Edit2, Trash2, AlertTriangle, Check, Image, Upload, LayoutDashboard, CalendarDays, Megaphone, BookOpen } from 'lucide-react'
+import { AdminSidebar } from '../admin/AdminSidebar'
+import { AdminHeader } from '../admin/AdminHeader'
+import { AdminDataTable } from '../admin/AdminDataTable'
+import { AdminModal } from '../admin/AdminModal'
+import * as galleryService from '../../../services/gallery.service'
+
+export interface GalleryAdminPageProps {
+  onLogout: () => void
+}
+
+interface FormData {
+  title: string
+  description: string
+  image_url: string
+  category: string
+  display_order: number
+}
+
+const EMPTY_FORM: FormData = {
+  title: '',
+  description: '',
+  image_url: '',
+  category: '',
+  display_order: 0,
+}
+
+export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
+  const navigate = useNavigate()
+  const [items, setItems] = useState<galleryService.GalleryItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
+  const [editingItem, setEditingItem] = useState<galleryService.GalleryItem | null>(null)
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const fetchItems = async () => {
+    setLoading(true)
+    try {
+      const data = await galleryService.getAllGalleryItems()
+      setItems(data)
+    } catch (err) {
+      console.error('Error fetching gallery:', err)
+      showError('No se pudieron cargar las imágenes. Intente de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchItems()
+  }, [])
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(''), 3000)
+  }
+
+  const showError = (msg: string) => {
+    setErrorMsg(msg)
+    setTimeout(() => setErrorMsg(''), 5000)
+  }
+
+  const openCreate = () => {
+    setFormData(EMPTY_FORM)
+    setEditingItem(null)
+    setPreview(null)
+    setModalMode('create')
+  }
+
+  const openEdit = (item: galleryService.GalleryItem) => {
+    setEditingItem(item)
+    setFormData({
+      title: item.title,
+      description: item.description || '',
+      image_url: item.image_url,
+      category: item.category || '',
+      display_order: item.display_order || 0,
+    })
+    setPreview(item.image_url || null)
+    setModalMode('edit')
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await galleryService.uploadGalleryImage(file)
+      setFormData(prev => ({ ...prev, image_url: url }))
+      setPreview(url)
+    } catch (err) {
+      console.error('Error uploading image:', err)
+      showError('No se pudo subir la imagen. Intente de nuevo.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      if (modalMode === 'create') {
+        await galleryService.createGalleryItem(formData)
+        showSuccess('Imagen creada exitosamente.')
+      } else if (modalMode === 'edit' && editingItem) {
+        await galleryService.updateGalleryItem(editingItem.id, formData)
+        showSuccess('Imagen actualizada exitosamente.')
+      }
+    } catch (err) {
+      console.error('Error saving gallery item:', err)
+      showError('No se pudo guardar la imagen. Intente de nuevo.')
+    }
+    setModalMode(null)
+    fetchItems()
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await galleryService.removeGalleryItem(id)
+      showSuccess('Imagen eliminada correctamente.')
+    } catch (err) {
+      console.error('Error deleting gallery item:', err)
+      showError('No se pudo eliminar la imagen. Intente de nuevo.')
+    }
+    setDeleteConfirmId(null)
+    fetchItems()
+  }
+
+  const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) => {
+    setFormData(prev => ({ ...prev, [key]: value }))
+  }
+
+  const isFormValid = formData.title.trim() && formData.image_url.trim()
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
+      <AdminSidebar
+        sections={[
+          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Galería', icon: Image, to: '/admin/gallery' },
+          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
+          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
+        ]}
+        user={{ initials: 'A', name: 'Administrador', email: 'admin@jcmutis.edu.co' }}
+        onLogout={onLogout}
+      />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        <AdminHeader
+          title="Galería"
+          primaryButtonText="Nueva Imagen"
+          onPrimaryAction={openCreate}
+          onViewSite={() => navigate('/')}
+        />
+
+        <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
+          {successMsg && (
+            <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
+              <Check size={16} /> {successMsg}
+            </div>
+          )}
+          {errorMsg && (
+            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
+              <AlertTriangle size={16} /> {errorMsg}
+            </div>
+          )}
+
+          <AdminDataTable
+            columns={[
+              { key: 'image', header: 'Imagen', render: (item: galleryService.GalleryItem) => (
+                item.image_url ? (
+                  <img src={item.image_url} alt={item.title} style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: '6px', backgroundColor: '#E8F5E9' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                ) : (
+                  <div style={{ width: 60, height: 40, backgroundColor: '#E8F5E9', borderRadius: '6px' }} />
+                )
+              ) },
+              { key: 'title', header: 'Título', render: (item: galleryService.GalleryItem) => (
+                <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>{item.title}</div>
+              ) },
+              { key: 'category', header: 'Categoría', render: (item: galleryService.GalleryItem) => (
+                <div style={{ fontSize: '14px', color: '#3A4E3A' }}>{item.category || '-'}</div>
+              ) },
+              { key: 'order', header: 'Orden', render: (item: galleryService.GalleryItem) => (
+                <div style={{ fontSize: '14px', color: '#3A4E3A' }}>{item.display_order ?? '-'}</div>
+              ) },
+            ]}
+            data={items}
+            loading={loading}
+            emptyMessage="No hay imágenes en la galería."
+            loadingMessage="Cargando galería..."
+            getItemKey={(item) => item.id}
+            onEdit={openEdit}
+            onDeleteRequest={setDeleteConfirmId}
+            onDeleteConfirmed={handleDelete}
+            onDeleteCancelled={() => setDeleteConfirmId(null)}
+            deleteConfirmId={deleteConfirmId}
+          />
+        </div>
+      </div>
+
+      <AdminModal
+        open={!!modalMode}
+        title={modalMode === 'create' ? 'Nueva Imagen' : 'Editar Imagen'}
+        onClose={() => { setModalMode(null); setPreview(null) }}
+        onSave={handleSave}
+        saveLabel={modalMode === 'create' ? 'Crear' : 'Guardar Cambios'}
+        cancelLabel="Cancelar"
+      >
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título *</label>
+          <input type="text" value={formData.title} onChange={e => updateField('title', e.target.value)} placeholder="Ej: Festival Cultural" style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción</label>
+          <textarea value={formData.description} onChange={e => updateField('description', e.target.value)} placeholder="Descripción de la imagen..." rows={3} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', resize: 'vertical', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLTextAreaElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen *</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
+          >
+            <Upload size={16} /> {uploading ? 'Subiendo...' : image_url ? 'Cambiar imagen' : 'Seleccionar imagen'}
+          </button>
+          <input
+            type="url"
+            value={formData.image_url}
+            onChange={e => { updateField('image_url', e.target.value); setPreview(e.target.value || null) }}
+            placeholder="o pega una URL manual"
+            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', marginTop: '10px', transition: 'border-color 0.2s' }}
+            onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
+            onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
+          />
+          {(formData.image_url || preview) && (
+            <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
+              <img src={formData.image_url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
+            <input type="text" value={formData.category} onChange={e => updateField('category', e.target.value)} placeholder="Ej: cultural" style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Orden</label>
+            <input type="number" value={formData.display_order} onChange={e => updateField('display_order', parseInt(e.target.value || '0', 10))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
+          </div>
+        </div>
+      </AdminModal>
+    </div>
+  )
+}

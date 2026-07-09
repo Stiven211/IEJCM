@@ -1,7 +1,39 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
 import { GraduationCap, MapPin, Phone, Mail, Clock, Facebook, Instagram, Youtube } from 'lucide-react'
+import * as schoolInfoService from '../../services/schoolInfo.service'
 
 export function Footer() {
+  const [info, setInfo] = useState<schoolInfoService.SchoolInfo | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    schoolInfoService.getSchoolInfo().then(data => {
+      if (!cancelled && data) setInfo(data)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  const schoolName = info?.school_name || 'Colegio José Celestino Mutis'
+  const address = info?.address || 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia'
+  const phone = info?.phone || ''
+  const email = info?.email || ''
+  const facebook = info?.facebook || ''
+  const instagram = info?.instagram || ''
+  const youtube = info?.youtube || ''
+
+  const contactLines = [
+    ...(address ? [{ Icon: MapPin, text: address }] : []),
+    ...(phone ? phone.split('\n').map(line => ({ Icon: Phone, text: line })) : []),
+    ...(email ? email.split('\n').map(line => ({ Icon: Mail, text: line })) : []),
+  ]
+
+  const socials = [
+    ...(facebook ? [{ Icon: Facebook, href: facebook }] : []),
+    ...(instagram ? [{ Icon: Instagram, href: instagram }] : []),
+    ...(youtube ? [{ Icon: Youtube, href: youtube }] : []),
+  ]
+
   return (
     <footer style={{ backgroundColor: '#1A1A1A', color: '#FFFFFF' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '64px 24px 0' }}>
@@ -13,7 +45,7 @@ export function Footer() {
                 <GraduationCap size={20} color="#FFFFFF" />
               </div>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1.3 }}>Colegio José Celestino Mutis</div>
+                <div style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1.3 }}>{schoolName}</div>
                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>San José del Guaviare</div>
               </div>
             </div>
@@ -21,10 +53,12 @@ export function Footer() {
               Formando ciudadanos íntegros y comprometidos con el desarrollo de San José del Guaviare desde 1978.
             </p>
             <div style={{ display: 'flex', gap: '10px' }}>
-              {[Facebook, Instagram, Youtube].map((Icon, i) => (
+              {socials.map(({ Icon, href }, i) => (
                 <a
                   key={i}
-                  href="#"
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
                   style={{ width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s', textDecoration: 'none' }}
                   onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(0,100,0,0.5)'}
                   onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(255,255,255,0.07)'}
@@ -62,12 +96,8 @@ export function Footer() {
           <div>
             <h4 style={{ fontWeight: 700, fontSize: '11px', marginBottom: '20px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4CAF50' }}>Contacto</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {[
-                { Icon: MapPin, text: 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia' },
-                { Icon: Phone, text: '+57 *********\n+57 *********' },
-                { Icon: Mail, text: 'rectoria@jcmutis.edu.co\nsecretaria@jcmutis.edu.co' },
-              ].map(({ Icon, text }) => (
-                <div key={text} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              {contactLines.map(({ Icon, text }, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                   <Icon size={14} style={{ color: '#228B22', flexShrink: 0, marginTop: '3px' }} />
                   <span style={{ color: 'rgba(255,255,255,0.52)', fontSize: '14px', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{text}</span>
                 </div>
@@ -95,7 +125,7 @@ export function Footer() {
 
         <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
-            © 2026 Colegio José Celestino Mutis. Todos los derechos reservados.
+            © 2026 {schoolName}. Todos los derechos reservados.
           </div>
           <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '12px' }}>
             NIT: 892.099.311-7 · DANE: 150001006434

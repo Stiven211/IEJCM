@@ -2,44 +2,36 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { ChevronDown, BookOpen, Users, Award, TrendingUp, ArrowRight, MapPin, Phone, Mail, Send, Check } from 'lucide-react'
 import { EventCard } from './EventCard'
+import type { Event } from '../types'
 import * as eventService from '../../services/event.service'
 import * as galleryService from '../../services/gallery.service'
 import * as announcementService from '../../services/announcement.service'
-import { EVENTS } from '../data/events'
-
-const FALLBACK_GALLERY: galleryService.GalleryItem[] = [
-  { id: 'fb1', title: 'Estudiantes en el patio', description: '', image_url: 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=800&h=600&fit=crop&auto=format', category: '', display_order: 1, created_at: '' },
-  { id: 'fb2', title: 'Docente y estudiantes', description: '', image_url: 'https://images.unsplash.com/photo-1577896851231-70ef18881754?w=500&h=300&fit=crop&auto=format', category: '', display_order: 2, created_at: '' },
-  { id: 'fb3', title: 'Actividades deportivas', description: '', image_url: 'https://images.unsplash.com/photo-1700914299961-d8f91559d85d?w=500&h=300&fit=crop&auto=format', category: '', display_order: 3, created_at: '' },
-  { id: 'fb4', title: 'Ceremonia de graduación', description: '', image_url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=500&h=300&fit=crop&auto=format', category: '', display_order: 4, created_at: '' },
-  { id: 'fb5', title: 'Aula de clases', description: '', image_url: 'https://images.unsplash.com/photo-1561089489-f13d5e730d72?w=500&h=300&fit=crop&auto=format', category: '', display_order: 5, created_at: '' },
-  { id: 'fb6', title: 'Festival Cultural', description: '', image_url: 'https://images.unsplash.com/photo-1719241368157-7c78535f3a92?w=500&h=300&fit=crop&auto=format', category: '', display_order: 6, created_at: '' },
-]
+import * as schoolInfoService from '../../services/schoolInfo.service'
 
 export function HomePage() {
   const navigate = useNavigate()
-  const [events, setEvents] = useState<eventService.Event[]>([])
+  const [events, setEvents] = useState<Event[]>([])
   const [gallery, setGallery] = useState<galleryService.GalleryItem[]>([])
   const [announcements, setAnnouncements] = useState<announcementService.Announcement[]>([])
+  const [schoolInfo, setSchoolInfo] = useState<schoolInfoService.SchoolInfo | null>(null)
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [sent, setSent] = useState(false)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [ev, gal, ann] = await Promise.all([
+        const [ev, gal, ann, info] = await Promise.all([
           eventService.getAllEvents(),
           galleryService.getAllGalleryItems(),
           announcementService.getAllAnnouncements(),
+          schoolInfoService.getSchoolInfo(),
         ])
-        setEvents(ev.length ? ev : EVENTS)
-        setGallery(gal.length ? gal : FALLBACK_GALLERY)
+        setEvents(ev)
+        setGallery(gal)
         setAnnouncements(ann)
+        setSchoolInfo(info)
       } catch (err) {
         console.error('Error cargando datos del Home:', err)
-        setEvents(EVENTS)
-        setGallery(FALLBACK_GALLERY)
-        setAnnouncements([])
       }
     }
     load()
@@ -68,6 +60,23 @@ export function HomePage() {
     setTimeout(() => setSent(false), 4500)
   }
 
+  const schoolName = schoolInfo?.school_name || 'Colegio José Celestino Mutis'
+  const heroImage = schoolInfo?.hero_image_url || 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=1920&h=1080&fit=crop&auto=format'
+  const history = schoolInfo?.history || ''
+  const mission = schoolInfo?.mission || ''
+  const vision = schoolInfo?.vision || ''
+  const address = schoolInfo?.address || 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia'
+  const phone = schoolInfo?.phone || ''
+  const email = schoolInfo?.email || ''
+  const facebook = schoolInfo?.facebook || ''
+  const instagram = schoolInfo?.instagram || ''
+  const youtube = schoolInfo?.youtube || ''
+
+  const aboutText = history || 'Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.'
+
+  const contactPhone = phone ? phone.split('\n').map((line, i) => ({ id: i, text: line })) : []
+  const contactEmail = email ? email.split('\n').map((line, i) => ({ id: i, text: line })) : []
+
   return (
     <div>
       <style>{`
@@ -95,8 +104,8 @@ export function HomePage() {
       {/* ── HERO ── */}
       <section style={{ position: 'relative', minHeight: '90vh', display: 'flex', alignItems: 'center', overflow: 'hidden', backgroundColor: '#002200' }}>
         <img
-          src="https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=1920&h=1080&fit=crop&auto=format"
-          alt="Estudiantes del colegio"
+          src={heroImage}
+          alt={schoolName}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.32 }}
         />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(140deg, rgba(0,30,0,0.96) 0%, rgba(0,80,0,0.72) 55%, rgba(0,40,0,0.88) 100%)' }} />
@@ -114,7 +123,7 @@ export function HomePage() {
           </h1>
 
           <p style={{ fontSize: 'clamp(15px, 1.8vw, 19px)', color: 'rgba(255,255,255,0.72)', maxWidth: '560px', marginBottom: '44px', lineHeight: 1.78 }}>
-            Institución educativa con más de 45 años formando ciudadanos íntegros y comprometidos con el desarrollo de San José del Guaviare y la Amazonía colombiana.
+            {schoolInfo?.history || aboutText}
           </p>
 
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
@@ -143,24 +152,6 @@ export function HomePage() {
         >
           <span style={{ fontSize: '10px', letterSpacing: '0.12em' }}>DESPLAZAR</span>
           <ChevronDown size={17} />
-        </div>
-      </section>
-
-      {/* ── STATS ── */}
-      <section id="stats" style={{ backgroundColor: '#006400', color: '#FFFFFF', padding: '36px 24px' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
-          {[
-            { value: '45+', label: 'Años de Trayectoria', emoji: '🏫' },
-            { value: '1,200+', label: 'Estudiantes Activos', emoji: '🎓' },
-            { value: '80+', label: 'Docentes Calificados', emoji: '👩‍🏫' },
-            { value: '5', label: 'Premios Nacionales', emoji: '🏆' },
-          ].map(stat => (
-            <div key={stat.label} style={{ textAlign: 'center', padding: '12px 8px' }}>
-              <div style={{ fontSize: '28px', marginBottom: '4px' }}>{stat.emoji}</div>
-              <div style={{ fontSize: 'clamp(26px, 4vw, 38px)', fontWeight: 800, lineHeight: 1 }}>{stat.value}</div>
-              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.68)', marginTop: '8px', letterSpacing: '0.02em' }}>{stat.label}</div>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -214,42 +205,42 @@ export function HomePage() {
               <span style={{ color: '#006400' }}>de la Amazonía</span>
             </h2>
             <p style={{ color: '#4A5E4A', lineHeight: 1.85, marginBottom: '18px', fontSize: '16px' }}>
-              xxx
-            </p>
-            <p style={{ color: '#4A5E4A', lineHeight: 1.85, marginBottom: '32px', fontSize: '16px' }}>
-             xxx
+              {history ? history.split('\n').slice(0, 2).join('\n') : aboutText}
             </p>
 
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-               {[
-                 { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
-                 { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
-                 { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
-                 { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
-               ].map(({ icon: Icon, text }) => (
-                 <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                   <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                     <Icon size={17} style={{ color: '#006400' }} />
-                   </div>
-                   <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
-                 </div>
-               ))}
-             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {(schoolInfo?.mission || schoolInfo?.vision ? [
+                { icon: BookOpen, text: mission ? `Misión: ${mission.split('\n')[0]}` : '' },
+                { icon: Award, text: vision ? `Visión: ${vision.split('\n')[0]}` : '' },
+              ].filter(Boolean) : [
+                { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
+                { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
+                { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
+                { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
+              ]).map(({ icon: Icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={17} style={{ color: '#006400' }} />
+                  </div>
+                  <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
+                </div>
+              ))}
+            </div>
 
-             <button
-               onClick={() => document.getElementById('sobre-nosotros')?.scrollIntoView({ behavior: 'smooth' })}
-               style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '8px' }}
-               onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
-               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
-             >
-               Conocer más <ArrowRight size={15} />
-             </button>
-           </div>
+            <button
+              onClick={() => document.getElementById('sobre-nosotros')?.scrollIntoView({ behavior: 'smooth' })}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px 24px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', marginTop: '8px' }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
+            >
+              Conocer más <ArrowRight size={15} />
+            </button>
+          </div>
 
           <div style={{ position: 'relative' }}>
             <div style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: '#E8F5E9' }}>
               <img
-                src="https://images.unsplash.com/photo-1727518493216-d75fcdb3f2b2?w=800&h=600&fit=crop&auto=format"
+                src={schoolInfo?.hero_image_url || 'https://images.unsplash.com/photo-1727518493216-d75fcdb3f2b2?w=800&h=600&fit=crop&auto=format'}
                 alt="Estudiantes del Colegio"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', aspectRatio: '4/3' }}
               />
@@ -369,9 +360,12 @@ export function HomePage() {
               <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1A1A1A', marginBottom: '28px' }}>Información de Contacto</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
                 {[
-                  { Icon: MapPin, title: 'Dirección', content: 'Calle 8 #12-45, San José del Guaviare\nGuaviare, Colombia' },
-                  { Icon: Phone, title: 'Teléfonos', content: '+57 *********\n+57 *********' },
-                  { Icon: Mail, title: 'Correo Electrónico', content: 'rectoria@jcmutis.edu.co\nsecretaria@jcmutis.edu.co' },
+                  { Icon: MapPin, title: 'Dirección', content: address },
+                  { Icon: Phone, title: 'Teléfonos', content: phone || 'Próximamente' },
+                  { Icon: Mail, title: 'Correo Electrónico', content: email || 'Próximamente' },
+                  ...(facebook ? [{ Icon: Phone, title: 'Facebook', content: facebook }] : []),
+                  ...(instagram ? [{ Icon: Phone, title: 'Instagram', content: instagram }] : []),
+                  ...(youtube ? [{ Icon: Phone, title: 'YouTube', content: youtube }] : []),
                 ].map(({ Icon, title, content }) => (
                   <div key={title} style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
                     <div style={{ width: 42, height: 42, backgroundColor: '#E8F5E9', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -386,16 +380,16 @@ export function HomePage() {
               </div>
 
               <div style={{ borderRadius: '12px', overflow: 'hidden', height: '250px', border: '1px solid rgba(0,100,0,0.1)' }}>
-    <iframe 
-      src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14095.75967167216!2d-72.65122506261227!3d2.5586275951603885!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e17769a18ff5b9d%3A0xa248bbbbb0ee26b4!2sColegio%20Jos%C3%A9%20Celestino%20Mutis!5e1!3m2!1ses-419!2sco!4v1780669704802!5m2!1ses-419!2sco" 
-      width="100%" 
-      height="100%" 
-      style={{ border: 0 }} 
-      allowFullScreen="" 
-      loading="lazy" 
-      referrerPolicy="no-referrer-when-downgrade"
-    />
-  </div>
+                <iframe
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d14095.75967167216!2d-72.65122506261227!3d2.5586275951603885!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8e17769a18ff5b9d%3A0xa248bbbbb0ee26b4!2sColegio%20Jos%C3%A9%20Celestino%20Mutis!5e1!3m2!1ses-419!2sco!4v1780669704802!5m2!1ses-419!2sco"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
             </div>
 
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '36px', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>

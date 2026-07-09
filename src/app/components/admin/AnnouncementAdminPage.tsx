@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { Plus, AlertTriangle, Check } from 'lucide-react'
+import { AlertTriangle, Check, LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen } from 'lucide-react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import { AdminDataTable } from './AdminDataTable'
 import { AdminModal } from './AdminModal'
-import * as announcementService from '../../services/announcement.service'
+import * as announcementService from '../../../services/announcement.service'
 
 export interface AnnouncementAdminPageProps {
   onLogout: () => void
@@ -155,10 +155,11 @@ export function AnnouncementAdminPage({ onLogout }: AnnouncementAdminPageProps) 
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
         sections={[
-          { label: 'Dashboard', icon: Plus, active: false, onClick: () => {} },
-          { label: 'Eventos', icon: Plus, active: false, onClick: () => {} },
-          { label: 'Galería', icon: Plus, active: false, onClick: () => {} },
-          { label: 'Avisos', icon: Plus, active: true, onClick: () => {} },
+          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Galería', icon: Image, to: '/admin/gallery' },
+          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
+          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
         ]}
         user={{ initials: 'A', name: 'Administrador', email: 'admin@jcmutis.edu.co' }}
         onLogout={onLogout}

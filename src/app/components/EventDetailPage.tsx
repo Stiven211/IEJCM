@@ -1,13 +1,43 @@
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, Calendar, Clock, MapPin, Tag, Share2 } from 'lucide-react'
-import { EVENTS, CATEGORY_LABELS, CATEGORY_COLORS } from '../data/events'
 import { EventCard } from './EventCard'
+import * as eventService from '../../services/event.service'
+import type { Event } from '../types'
+import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
 
 export function EventDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [event, setEvent] = useState<Event | null>(null)
+  const [relatedEvents, setRelatedEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const event = EVENTS.find(e => e.id === id)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await eventService.getEventById(id || '')
+        setEvent(data)
+        if (data) {
+          const all = await eventService.getAllEvents()
+          setRelatedEvents(all.filter(e => e.id !== data.id && e.category === data.category).slice(0, 3))
+        }
+      } catch (err) {
+        console.error('Error cargando evento:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (id) load()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 24px', backgroundColor: '#F8F8F8', minHeight: '60vh' }}>
+        <div style={{ color: '#5A7A5A' }}>Cargando evento...</div>
+      </div>
+    )
+  }
 
   if (!event) {
     return (
@@ -29,8 +59,6 @@ export function EventDetailPage() {
 
   const catColor = CATEGORY_COLORS[event.category]
   const catLabel = CATEGORY_LABELS[event.category]
-
-  const relatedEvents = EVENTS.filter(e => e.id !== event.id && e.category === event.category).slice(0, 3)
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -75,7 +103,7 @@ export function EventDetailPage() {
           <div>
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: 'clamp(24px, 3vw, 40px)', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 2px 14px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#1A1A1A', marginBottom: '22px' }}>Sobre este evento</h2>
-              {event.fullDescription.split('\n\n').map((paragraph, i) => (
+              {(event.fullDescription || '').split('\n\n').map((paragraph, i) => (
                 <p key={i} style={{ color: '#3A4E3A', fontSize: '16px', lineHeight: 1.88, marginBottom: '18px' }}>
                   {paragraph}
                 </p>
