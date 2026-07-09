@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { Save, AlertTriangle, Check, BookOpen, LayoutDashboard, CalendarDays, Image, Megaphone } from 'lucide-react'
+import { Save, AlertTriangle, Check, BookOpen, LayoutDashboard, CalendarDays, Image, Megaphone, Upload } from 'lucide-react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import * as schoolInfoService from '../../../services/schoolInfo.service'
+
 
 export interface SchoolInfoAdminPageProps {
   onLogout: () => void
@@ -22,6 +23,8 @@ interface FormData {
   youtube: string
   logo_url: string
   hero_image_url: string
+  hero_badge: string
+  hero_badge_color: string
 }
 
 const EMPTY_FORM: FormData = {
@@ -37,6 +40,8 @@ const EMPTY_FORM: FormData = {
   youtube: '',
   logo_url: '',
   hero_image_url: '',
+  hero_badge: '',
+  hero_badge_color: '#991B1B',
 }
 
 export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
@@ -46,6 +51,10 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingHero, setUploadingHero] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const heroInputRef = useRef<HTMLInputElement>(null)
 
   const fetchInfo = async () => {
     setLoading(true)
@@ -65,6 +74,8 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
           youtube: data.youtube || '',
           logo_url: data.logo_url || '',
           hero_image_url: data.hero_image_url || '',
+          hero_badge: data.hero_badge || '',
+          hero_badge_color: data.hero_badge_color || '#991B1B',
         })
       }
     } catch (err) {
@@ -106,6 +117,36 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingLogo(true)
+    try {
+      const url = await schoolInfoService.uploadSchoolInfoMedia(file)
+      setFormData(prev => ({ ...prev, logo_url: url }))
+    } catch (err) {
+      console.error('Error uploading logo:', err)
+      showError('No se pudo subir el logo. Intente de nuevo.')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingHero(true)
+    try {
+      const url = await schoolInfoService.uploadSchoolInfoMedia(file)
+      setFormData(prev => ({ ...prev, hero_image_url: url }))
+    } catch (err) {
+      console.error('Error uploading hero image:', err)
+      showError('No se pudo subir la imagen principal. Intente de nuevo.')
+    } finally {
+      setUploadingHero(false)
+    }
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '10px 14px',
@@ -126,6 +167,14 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
   const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.target.style.borderColor = 'rgba(0,0,0,0.11)'
   }
+
+  const badgeColors = [
+    { value: '#991B1B', label: 'Rojo' },
+    { value: '#006400', label: 'Verde' },
+    { value: '#1E40AF', label: 'Azul' },
+    { value: '#92400E', label: 'Naranja' },
+    { value: '#5B21B6', label: 'Morado' },
+  ]
 
   if (loading) {
     return (
@@ -189,6 +238,33 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
                   <input type="text" value={formData.school_name} onChange={e => updateField('school_name', e.target.value)} placeholder="Ej: Colegio José Celestino Mutis" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
                 </div>
                 <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Texto del banner del Hero</label>
+                  <input type="text" value={formData.hero_badge} onChange={e => updateField('hero_badge', e.target.value)} placeholder="Ej: Año Escolar 2026 — Inscripciones Abiertas" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#1A1A1A', whiteSpace: 'nowrap' }}>Color del badge:</label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {badgeColors.map(color => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => updateField('hero_badge_color', color.value)}
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          backgroundColor: color.value,
+                          border: formData.hero_badge_color === color.value ? '3px solid #1A1A1A' : '3px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        title={color.label}
+                      />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '12px', color: '#5A7A5A' }}>{formData.hero_badge_color}</span>
+                </div>
+                <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Dirección</label>
                   <input type="text" value={formData.address} onChange={e => updateField('address', e.target.value)} placeholder="Calle 8 #12-45, San José del Guaviare" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
                 </div>
@@ -249,8 +325,16 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '16px' }}>Multimedia</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>URL Logo</label>
-                  <input type="url" value={formData.logo_url} onChange={e => updateField('logo_url', e.target.value)} placeholder="https://..." style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Logo</label>
+                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
+                  >
+                    <Upload size={16} /> {uploadingLogo ? 'Subiendo logo...' : formData.logo_url ? 'Cambiar logo' : 'Seleccionar logo'}
+                  </button>
                   {formData.logo_url && (
                     <div style={{ marginTop: '8px', width: 80, height: 80, borderRadius: '8px', overflow: 'hidden', backgroundColor: '#E8F5E9' }}>
                       <img src={formData.logo_url} alt="Logo preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -258,8 +342,16 @@ export function SchoolInfoAdminPage({ onLogout }: SchoolInfoAdminPageProps) {
                   )}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>URL Imagen principal (Hero)</label>
-                  <input type="url" value={formData.hero_image_url} onChange={e => updateField('hero_image_url', e.target.value)} placeholder="https://..." style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen principal (Hero)</label>
+                  <input ref={heroInputRef} type="file" accept="image/*" onChange={handleHeroUpload} style={{ display: 'none' }} />
+                  <button
+                    type="button"
+                    onClick={() => heroInputRef.current?.click()}
+                    disabled={uploadingHero}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
+                  >
+                    <Upload size={16} /> {uploadingHero ? 'Subiendo imagen...' : formData.hero_image_url ? 'Cambiar imagen principal' : 'Seleccionar imagen principal'}
+                  </button>
                   {formData.hero_image_url && (
                     <div style={{ marginTop: '8px', borderRadius: '8px', overflow: 'hidden', height: 160, backgroundColor: '#E8F5E9' }}>
                       <img src={formData.hero_image_url} alt="Hero preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />

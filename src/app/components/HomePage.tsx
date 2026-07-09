@@ -73,6 +73,8 @@ export function HomePage() {
   const youtube = schoolInfo?.youtube || ''
 
   const aboutText = history || 'Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.'
+  const heroBadge = schoolInfo?.hero_badge || 'Año Escolar 2026 — Inscripciones Abiertas'
+  const heroBadgeColor = schoolInfo?.hero_badge_color || '#991B1B'
 
   const contactPhone = phone ? phone.split('\n').map((line, i) => ({ id: i, text: line })) : []
   const contactEmail = email ? email.split('\n').map((line, i) => ({ id: i, text: line })) : []
@@ -112,8 +114,8 @@ export function HomePage() {
 
         <div style={{ position: 'relative', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(80px,10vw,120px) 24px clamp(60px,8vw,80px)', color: '#FFFFFF' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '24px', padding: '8px 18px', marginBottom: '28px', backdropFilter: 'blur(6px)' }}>
-            <span style={{ width: 8, height: 8, backgroundColor: '#4ADE80', borderRadius: '50%', boxShadow: '0 0 8px #4ADE80' }} />
-            <span style={{ fontSize: '13px', letterSpacing: '0.04em' }}>Año Escolar 2026 — Inscripciones Abiertas</span>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', boxShadow: '0 0 8px ' + heroBadgeColor, backgroundColor: heroBadgeColor }} />
+            <span style={{ fontSize: '13px', letterSpacing: '0.04em', color: heroBadgeColor }}>{heroBadge}</span>
           </div>
 
           <h1 style={{ fontSize: 'clamp(38px, 6.5vw, 76px)', fontWeight: 800, lineHeight: 1.06, maxWidth: '740px', marginBottom: '24px', letterSpacing: '-0.025em' }}>

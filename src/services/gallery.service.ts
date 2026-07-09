@@ -6,7 +6,7 @@ export interface GalleryItem {
   description?: string
   image_url: string
   category?: string
-  display_order?: number
+  active?: boolean
   created_at?: string
 }
 
@@ -16,7 +16,8 @@ export async function getAllGalleryItems() {
   const { data, error } = await supabase
     .from('gallery')
     .select('*')
-    .order('display_order', { ascending: true })
+    .eq('active', true)
+    .order('created_at', { ascending: false })
 
   if (error) {
     throw error

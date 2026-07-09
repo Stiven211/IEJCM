@@ -1,9 +1,8 @@
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import {
-  GraduationCap, LayoutDashboard, CalendarDays, LogOut,
-  Edit2, Trash2, Search, Check, AlertTriangle,
+  GraduationCap, LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen, LogOut,
+  Edit2, Trash2, Search, Check, AlertTriangle, Upload,
 } from 'lucide-react'
 import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
@@ -19,7 +18,20 @@ interface AdminDashboardProps {
 
 type ModalMode = 'create' | 'edit' | null
 
-const EMPTY_FORM: Omit<Event, 'id' | 'created_at'> = {
+interface FormData {
+  title: string
+  description: string
+  fullDescription: string
+  date: string
+  time: string
+  endTime: string
+  location: string
+  category: Event['category']
+  image: string
+  active: boolean
+}
+
+const EMPTY_FORM: FormData = {
   title: '',
   description: '',
   fullDescription: '',
@@ -29,6 +41,7 @@ const EMPTY_FORM: Omit<Event, 'id' | 'created_at'> = {
   location: '',
   category: 'academic',
   image: '',
+  active: true,
 }
 
 const TODAY = new Date('2026-06-01T00:00:00')
@@ -47,10 +60,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [modalMode, setModalMode] = useState<ModalMode>(null)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
-  const [formData, setFormData] = useState(EMPTY_FORM)
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchEvents = async () => {
     setLoading(true)
@@ -82,6 +98,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const openCreate = () => {
     setFormData(EMPTY_FORM)
     setEditingEvent(null)
+    setPreview(null)
     setModalMode('create')
   }
 
@@ -97,8 +114,26 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       location: event.location,
       category: event.category,
       image: event.image || '',
+      active: event.active !== false,
     })
+    setPreview(event.image || null)
     setModalMode('edit')
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const url = await eventService.uploadEventImage(file)
+      setFormData(prev => ({ ...prev, image: url }))
+      setPreview(url)
+    } catch (err) {
+      console.error('Error uploading image:', err)
+      showError('No se pudo subir la imagen. Intente de nuevo.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleSave = async () => {
@@ -130,7 +165,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     fetchEvents()
   }
 
-  const updateField = <K extends keyof Omit<Event, 'id' | 'created_at'>>(key: K, value: Omit<Event, 'id' | 'created_at'>[K]) => {
+  const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
@@ -232,6 +267,8 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{ width: '100%', paddingLeft: '34px', paddingRight: '12px', height: '40px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
+                onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.09)'}
               />
             </div>
             <span style={{ color: '#5A7A5A', fontSize: '13px', whiteSpace: 'nowrap' }}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
@@ -240,10 +277,39 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {/* Table */}
           <AdminDataTable
             columns={[
-              { key: 'title', header: 'Título', render: (event: Event) => (<div> <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.title}</div> <div style={{ fontSize: '12px', color: '#5A7A5A', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.location}</div> </div>) },
-              { key: 'date', header: 'Fecha', render: (event: Event) => { const eventDate = new Date(event.date + 'T00:00:00'); return <div style={{ fontSize: '14px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>{eventDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>; } },
-              { key: 'category', header: 'Categoría', render: (event: Event) => { const catColor = CATEGORY_COLORS[event.category]; return <span style={{ backgroundColor: catColor.bg, color: catColor.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{CATEGORY_LABELS[event.category]}</span>; } },
-              { key: 'status', header: 'Estado', render: (event: Event) => { const status = getStatus(event.date); return <span style={{ backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>{status.label}</span>; } },
+              { key: 'title', header: 'Evento', render: (item: Event) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '8px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#E8F5E9' }}>
+                    {item.image ? (
+                      <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A7A5A', fontSize: '10px', fontWeight: 700 }}>IMG</div>
+                    )}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px' }}>{item.title}</div>
+                    <div style={{ fontSize: '12px', color: '#5A7A5A' }}>{item.location}</div>
+                  </div>
+                </div>
+              ) },
+              { key: 'date', header: 'Fecha', render: (item: Event) => {
+                const status = getStatus(item.date)
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '13px', color: '#3A4E3A', whiteSpace: 'nowrap' }}>{new Date(item.date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                    <div style={{ alignSelf: 'flex-start', backgroundColor: status.bg, color: status.text, borderRadius: '12px', padding: '2px 8px', fontSize: '11px', fontWeight: 600 }}>{status.label}</div>
+                  </div>
+                )
+              } },
+              { key: 'category', header: 'Categoría', render: (item: Event) => (
+                <div style={{ fontSize: '13px', color: '#3A4E3A' }}>{CATEGORY_LABELS[item.category] || item.category}</div>
+              ) },
+              { key: 'active', header: 'Activo', render: (item: Event) => (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: item.active !== false ? '#006400' : '#DC2626' }} />
+                  <span style={{ fontSize: '13px', color: item.active !== false ? '#006400' : '#DC2626', fontWeight: 600 }}>{item.active !== false ? 'Activo' : 'Inactivo'}</span>
+                </div>
+              ) },
             ]}
             data={filtered}
             loading={loading}
@@ -262,7 +328,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         <AdminModal
           open={!!modalMode}
           title={modalMode === 'create' ? '+ Crear Nuevo Evento' : 'Editar Evento'}
-          onClose={() => setModalMode(null)}
+          onClose={() => { setModalMode(null); setPreview(null) }}
           onSave={handleSave}
           saveLabel={modalMode === 'create' ? 'Crear Evento' : 'Guardar Cambios'}
           cancelLabel="Cancelar"
@@ -319,17 +385,44 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
           </div>
 
-          {/* Image URL */}
+          {/* Image upload */}
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>URL de imagen</label>
-            <input type="url" value={formData.image} onChange={e => updateField('image', e.target.value)} placeholder="https://images.unsplash.com/..." style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
-            {formData.image && (
-              <div style={{ marginTop: '8px', borderRadius: '7px', overflow: 'hidden', height: '110px', backgroundColor: '#E8F5E9' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen del evento</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
+            >
+              <Upload size={16} /> {uploading ? 'Subiendo...' : formData.image ? 'Cambiar imagen' : 'Seleccionar imagen'}
+            </button>
+            {(formData.image || preview) && (
+              <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
                 <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               </div>
             )}
           </div>
+
+          {/* Active */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+            <input
+              type="checkbox"
+              id="event-active"
+              checked={formData.active}
+              onChange={e => updateField('active', e.target.checked)}
+              style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#006400' }}
+            />
+            <label htmlFor="event-active" style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', cursor: 'pointer' }}>Evento activo</label>
+          </div>
         </AdminModal>
       </div>
-      )
-      </div>)}
+    </div>
+  )
+}

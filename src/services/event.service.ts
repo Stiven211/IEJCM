@@ -1,6 +1,7 @@
-
 import { supabase } from '../lib/supabase'
 import type { Event } from '../../app/types'
+
+const STORAGE_BUCKET = 'events'
 
 export async function getAllEvents() {
   const { data, error } = await supabase
@@ -69,3 +70,19 @@ export async function removeEvent(id: string) {
   }
 }
 
+export async function uploadEventImage(file: File) {
+  const ext = file.name.split('.').pop() || 'bin'
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+  return data.publicUrl
+}

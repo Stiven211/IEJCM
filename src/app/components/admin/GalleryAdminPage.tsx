@@ -16,7 +16,7 @@ interface FormData {
   description: string
   image_url: string
   category: string
-  display_order: number
+  active: boolean
 }
 
 const EMPTY_FORM: FormData = {
@@ -24,7 +24,7 @@ const EMPTY_FORM: FormData = {
   description: '',
   image_url: '',
   category: '',
-  display_order: 0,
+  active: true,
 }
 
 export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
@@ -82,7 +82,7 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
       description: item.description || '',
       image_url: item.image_url,
       category: item.category || '',
-      display_order: item.display_order || 0,
+      active: item.active !== false,
     })
     setPreview(item.image_url || null)
     setModalMode('edit')
@@ -188,8 +188,10 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
               { key: 'category', header: 'Categoría', render: (item: galleryService.GalleryItem) => (
                 <div style={{ fontSize: '14px', color: '#3A4E3A' }}>{item.category || '-'}</div>
               ) },
-              { key: 'order', header: 'Orden', render: (item: galleryService.GalleryItem) => (
-                <div style={{ fontSize: '14px', color: '#3A4E3A' }}>{item.display_order ?? '-'}</div>
+              { key: 'active', header: 'Activo', render: (item: galleryService.GalleryItem) => (
+                <span style={{ backgroundColor: item.active !== false ? '#E8F5E9' : '#FEF2F2', color: item.active !== false ? '#006400' : '#DC2626', borderRadius: '12px', padding: '3px 10px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {item.active !== false ? 'Activo' : 'Inactivo'}
+                </span>
               ) },
             ]}
             data={items}
@@ -239,17 +241,8 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
             disabled={uploading}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
           >
-            <Upload size={16} /> {uploading ? 'Subiendo...' : image_url ? 'Cambiar imagen' : 'Seleccionar imagen'}
+            <Upload size={16} /> {uploading ? 'Subiendo...' : formData.image_url ? 'Cambiar imagen' : 'Seleccionar imagen'}
           </button>
-          <input
-            type="url"
-            value={formData.image_url}
-            onChange={e => { updateField('image_url', e.target.value); setPreview(e.target.value || null) }}
-            placeholder="o pega una URL manual"
-            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', marginTop: '10px', transition: 'border-color 0.2s' }}
-            onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
-            onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
-          />
           {(formData.image_url || preview) && (
             <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
               <img src={formData.image_url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -257,15 +250,20 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
-            <input type="text" value={formData.category} onChange={e => updateField('category', e.target.value)} placeholder="Ej: cultural" style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Orden</label>
-            <input type="number" value={formData.display_order} onChange={e => updateField('display_order', parseInt(e.target.value || '0', 10))} style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
-          </div>
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
+          <input type="text" value={formData.category} onChange={e => updateField('category', e.target.value)} placeholder="Ej: cultural" style={{ width: '100%', padding: '10px 14px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', backgroundColor: '#FFFFFF', color: '#1A1A1A', transition: 'border-color 0.2s' }} onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'} onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
+          <input
+            type="checkbox"
+            id="gallery-active"
+            checked={formData.active}
+            onChange={e => updateField('active', e.target.checked)}
+            style={{ width: 18, height: 18, cursor: 'pointer', accentColor: '#006400' }}
+          />
+          <label htmlFor="gallery-active" style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', cursor: 'pointer' }}>Imagen activa (visible en la página)</label>
         </div>
       </AdminModal>
     </div>

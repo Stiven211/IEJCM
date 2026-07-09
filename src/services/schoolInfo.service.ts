@@ -14,6 +14,8 @@ export interface SchoolInfo {
   youtube: string
   logo_url: string
   hero_image_url: string
+  hero_badge: string
+  hero_badge_color: string
   updated_at: string
 }
 
@@ -43,4 +45,21 @@ export async function upsertSchoolInfo(payload: Omit<SchoolInfo, 'id' | 'updated
   }
 
   return data as SchoolInfo
+}
+
+export async function uploadSchoolInfoMedia(file: File) {
+  const ext = file.name.split('.').pop() || 'bin'
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+  const { error } = await supabase.storage.from('school-info').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const { data } = supabase.storage.from('school-info').getPublicUrl(path)
+  return data.publicUrl
 }
