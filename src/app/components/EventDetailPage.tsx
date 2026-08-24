@@ -5,6 +5,10 @@ import { EventCard } from './EventCard'
 import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
+import { EventDetailSkeleton } from './ui/EventDetailSkeleton'
+import { ResilientImage } from './ui/ResilientImage'
+
+const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 export function EventDetailPage() {
   const { id } = useParams()
@@ -12,16 +16,23 @@ export function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null)
   const [relatedEvents, setRelatedEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await eventService.getEventById(id || '')
-        setEvent(data)
-        if (data) {
-          const all = await eventService.getAllEvents()
-          setRelatedEvents(all.filter(e => e.id !== data.id && e.category === data.category).slice(0, 3))
-        }
+         const data = await eventService.getEventById(id || '')
+         if (data && data.active === false) {
+           setEvent(null)
+           setLoading(false)
+           return
+         }
+         setEvent(data)
+        setImgLoaded(false)
+         if (data) {
+           const related = await eventService.getRelatedEvents(data.category, data.id)
+           setRelatedEvents(related)
+         }
       } catch (err) {
         console.error('Error cargando evento:', err)
       } finally {
@@ -32,20 +43,18 @@ export function EventDetailPage() {
   }, [id])
 
   if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '100px 24px', backgroundColor: '#F8F8F8', minHeight: '60vh' }}>
-        <div style={{ color: '#5A7A5A' }}>Cargando evento...</div>
-      </div>
-    )
+    return <EventDetailSkeleton />
   }
 
   if (!event) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 24px', backgroundColor: '#F8F8F8', minHeight: '60vh' }}>
+      <div className="fade-in" style={{ textAlign: 'center', padding: '100px 24px', backgroundColor: '#F8F8F8', minHeight: '60vh' }}>
         <div style={{ fontSize: '18px', fontWeight: 700, color: '#1A1A1A', marginBottom: '12px' }}>Evento no encontrado</div>
         <button
           onClick={() => navigate('/eventos')}
-          style={{ color: '#006400', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '15px', fontWeight: 600 }}
+          style={{ color: '#006400', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: '15px', fontWeight: 600, transition: TRANSITION }}
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0.7'}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
         >
           ← Volver a Eventos
         </button>
@@ -69,23 +78,28 @@ export function EventDetailPage() {
   return (
     <div style={{ backgroundColor: '#F8F8F8', minHeight: '100vh' }}>
       <div style={{ position: 'relative', height: 'clamp(300px, 48vh, 520px)', overflow: 'hidden', backgroundColor: '#002200' }}>
-        <img
+        <ResilientImage
           src={event.image}
           alt={event.title}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }}
+          fallbackLabel="Imagen del evento no disponible"
+          decoding="async"
+          onLoad={() => setImgLoaded(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: imgLoaded ? 0.5 : 0, transition: 'opacity 350ms ease' }}
         />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,15,0,0.97) 0%, rgba(0,40,0,0.6) 45%, transparent 100%)' }} />
 
         <button
           onClick={() => navigate('/eventos')}
-          style={{ position: 'absolute', top: '24px', left: '24px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(0,0,0,0.35)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '8px', padding: '8px 16px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(4px)', transition: 'background 0.2s' }}
+          style={{ position: 'absolute', top: '24px', left: '24px', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(0,0,0,0.35)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)', borderRadius: '8px', padding: '8px 16px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', backdropFilter: 'blur(4px)', transition: TRANSITION }}
           onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.55)'}
           onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(0,0,0,0.35)'}
+          onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'}
+          onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
         >
           <ArrowLeft size={15} /> Volver a Eventos
         </button>
 
-        <div style={{ position: 'absolute', bottom: '32px', left: '24px', right: '24px' }}>
+        <div className="fade-in-up" style={{ position: 'absolute', bottom: '32px', left: '24px', right: '24px', animationDelay: '100ms' }}>
           <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
             <div style={{ backgroundColor: catColor.bg, color: catColor.text, display: 'inline-block', borderRadius: '20px', padding: '4px 12px', fontSize: '12px', fontWeight: 600, marginBottom: '14px' }}>
               {catLabel}
@@ -97,7 +111,7 @@ export function EventDetailPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px' }}>
+      <div className="fade-in-up" style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px', animationDelay: '120ms' }}>
         <div style={{ display: 'grid', gap: '32px', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', alignItems: 'flex-start' }}>
 
           <div>
@@ -114,9 +128,11 @@ export function EventDetailPage() {
               <span style={{ color: '#5A7A5A', fontSize: '14px' }}>Compartir:</span>
               <button
                 onClick={handleShare}
-                style={{ display: 'flex', alignItems: 'center', gap: '7px', backgroundColor: '#E8F5E9', color: '#006400', border: 'none', padding: '8px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '7px', backgroundColor: '#E8F5E9', color: '#006400', border: 'none', padding: '8px 14px', borderRadius: '7px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: TRANSITION }}
                 onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#C8E6C9'}
                 onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'}
+                onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'}
+                onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
               >
                 <Share2 size={14} /> Copiar enlace
               </button>
@@ -146,10 +162,12 @@ export function EventDetailPage() {
 
               <div style={{ borderTop: '1px solid rgba(0,0,0,0.07)', paddingTop: '20px', marginTop: '6px' }}>
                 <button
-                  onClick={() => navigate('/#contacto')}
-                  style={{ width: '100%', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
+                  onClick={() => navigate('/contacto')}
+                  style={{ width: '100%', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '13px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: TRANSITION }}
                   onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
                   onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
+                  onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)'}
+                  onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
                 >
                   Solicitar más información
                 </button>
@@ -159,7 +177,7 @@ export function EventDetailPage() {
         </div>
 
         {relatedEvents.length > 0 && (
-          <div style={{ marginTop: '56px' }}>
+          <div className="fade-in-up" style={{ marginTop: '56px', animationDelay: '180ms' }}>
             <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1A1A1A', marginBottom: '24px', letterSpacing: '-0.01em' }}>
               Eventos relacionados
             </h2>

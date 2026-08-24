@@ -1,14 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { Edit2, Trash2, AlertTriangle, Check, Image, Upload, LayoutDashboard, CalendarDays, Megaphone, BookOpen } from 'lucide-react'
+import { Image, Upload, LayoutDashboard, CalendarDays, Megaphone, BookOpen, FileText } from 'lucide-react'
 import { AdminSidebar } from '../admin/AdminSidebar'
 import { AdminHeader } from '../admin/AdminHeader'
 import { AdminDataTable } from '../admin/AdminDataTable'
 import { AdminModal } from '../admin/AdminModal'
+import { AdminStatusMessages } from './AdminStatusMessages'
+import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import * as galleryService from '../../../services/gallery.service'
+import { logError } from '../../../lib/logger'
+import { ResilientImage } from '../ui/ResilientImage'
 
 export interface GalleryAdminPageProps {
   onLogout: () => void
+  adminUser: { initials: string; name: string; email: string } | null
 }
 
 interface FormData {
@@ -27,7 +32,7 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
-export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
+export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps) {
   const navigate = useNavigate()
   const [items, setItems] = useState<galleryService.GalleryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,19 +40,19 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
   const [editingItem, setEditingItem] = useState<galleryService.GalleryItem | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const { successMsg, errorMsg, showSuccess, showError } = useAdminStatus()
+
   const fetchItems = async () => {
     setLoading(true)
     try {
-      const data = await galleryService.getAllGalleryItems()
+       const data = await galleryService.getAllGalleryItems(false)
       setItems(data)
     } catch (err) {
-      console.error('Error fetching gallery:', err)
+      logError(err, { action: 'fetchGallery' })
       showError('No se pudieron cargar las imágenes. Intente de nuevo.')
     } finally {
       setLoading(false)
@@ -57,16 +62,6 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
   useEffect(() => {
     fetchItems()
   }, [])
-
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3000)
-  }
-
-  const showError = (msg: string) => {
-    setErrorMsg(msg)
-    setTimeout(() => setErrorMsg(''), 5000)
-  }
 
   const openCreate = () => {
     setFormData(EMPTY_FORM)
@@ -97,14 +92,17 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
       setFormData(prev => ({ ...prev, image_url: url }))
       setPreview(url)
     } catch (err) {
-      console.error('Error uploading image:', err)
+      logError(err, { action: 'uploadGalleryImage' })
       showError('No se pudo subir la imagen. Intente de nuevo.')
     } finally {
       setUploading(false)
     }
   }
 
+  const [saving, setSaving] = useState(false)
+
   const handleSave = async () => {
+    setSaving(true)
     try {
       if (modalMode === 'create') {
         await galleryService.createGalleryItem(formData)
@@ -113,12 +111,14 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
         await galleryService.updateGalleryItem(editingItem.id, formData)
         showSuccess('Imagen actualizada exitosamente.')
       }
+      setModalMode(null)
+      fetchItems()
     } catch (err) {
-      console.error('Error saving gallery item:', err)
+      logError(err, { action: 'saveGalleryItem' })
       showError('No se pudo guardar la imagen. Intente de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setModalMode(null)
-    fetchItems()
   }
 
   const handleDelete = async (id: string) => {
@@ -126,7 +126,7 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
       await galleryService.removeGalleryItem(id)
       showSuccess('Imagen eliminada correctamente.')
     } catch (err) {
-      console.error('Error deleting gallery item:', err)
+      logError(err, { action: 'deleteGalleryItem' })
       showError('No se pudo eliminar la imagen. Intente de nuevo.')
     }
     setDeleteConfirmId(null)
@@ -137,8 +137,6 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
-  const isFormValid = formData.title.trim() && formData.image_url.trim()
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
@@ -148,8 +146,9 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
+          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
         ]}
-        user={{ initials: 'A', name: 'Administrador', email: 'admin@jcmutis.edu.co' }}
+        user={adminUser!}
         onLogout={onLogout}
       />
 
@@ -162,26 +161,17 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
         />
 
         <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
-          {successMsg && (
-            <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
-              <Check size={16} /> {successMsg}
-            </div>
-          )}
-          {errorMsg && (
-            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
-              <AlertTriangle size={16} /> {errorMsg}
-            </div>
-          )}
+          <AdminStatusMessages successMsg={successMsg} errorMsg={errorMsg} />
 
           <AdminDataTable
             columns={[
-              { key: 'image', header: 'Imagen', render: (item: galleryService.GalleryItem) => (
-                item.image_url ? (
-                  <img src={item.image_url} alt={item.title} style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: '6px', backgroundColor: '#E8F5E9' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                ) : (
-                  <div style={{ width: 60, height: 40, backgroundColor: '#E8F5E9', borderRadius: '6px' }} />
-                )
-              ) },
+               { key: 'image', header: 'Imagen', render: (item: galleryService.GalleryItem) => (
+                 item.image_url ? (
+                   <ResilientImage src={item.image_url} alt={item.title} fallbackLabel="Imagen no disponible" decoding="async" style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: '6px', backgroundColor: '#E8F5E9' }} />
+                 ) : (
+                   <div style={{ width: 60, height: 40, backgroundColor: '#E8F5E9', borderRadius: '6px' }} />
+                 )
+               ) },
               { key: 'title', header: 'Título', render: (item: galleryService.GalleryItem) => (
                 <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A' }}>{item.title}</div>
               ) },
@@ -215,6 +205,7 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
         onSave={handleSave}
         saveLabel={modalMode === 'create' ? 'Crear' : 'Guardar Cambios'}
         cancelLabel="Cancelar"
+        saving={saving}
       >
         <div>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título *</label>
@@ -245,7 +236,7 @@ export function GalleryAdminPage({ onLogout }: GalleryAdminPageProps) {
           </button>
           {(formData.image_url || preview) && (
             <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
-              <img src={formData.image_url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+               <ResilientImage src={formData.image_url} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
         </div>

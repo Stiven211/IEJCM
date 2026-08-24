@@ -1,15 +1,26 @@
 import { supabase } from '../lib/supabase'
-import type { Event } from '../../app/types'
+import { uploadToStorage } from '../lib/storage'
+import { logError } from '../lib/logger'
+import type { Event } from '../app/types'
+
+export type { Event }
 
 const STORAGE_BUCKET = 'events'
 
-export async function getAllEvents() {
-  const { data, error } = await supabase
+export async function getAllEvents(activeOnly = true) {
+  let query = supabase
     .from('events')
     .select('*')
     .order('date', { ascending: true })
 
+  if (activeOnly) {
+    query = query.eq('active', true)
+  }
+
+  const { data, error } = await query
+
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -24,10 +35,29 @@ export async function getEventById(id: string) {
     .maybeSingle()
 
   if (error) {
+    logError(error)
     throw error
   }
 
   return data as Event | null
+}
+
+export async function getRelatedEvents(category: string, excludeId: string, limit = 3) {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('category', category)
+    .eq('active', true)
+    .neq('id', excludeId)
+    .order('date', { ascending: true })
+    .limit(limit)
+
+  if (error) {
+    logError(error)
+    throw error
+  }
+
+  return (data || []) as Event[]
 }
 
 export async function createEvent(payload: Omit<Event, 'id' | 'created_at'>) {
@@ -38,6 +68,7 @@ export async function createEvent(payload: Omit<Event, 'id' | 'created_at'>) {
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -53,6 +84,7 @@ export async function updateEvent(id: string, payload: Omit<Event, 'id' | 'creat
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -66,23 +98,11 @@ export async function removeEvent(id: string) {
     .eq('id', id)
 
   if (error) {
+    logError(error)
     throw error
   }
 }
 
 export async function uploadEventImage(file: File) {
-  const ext = file.name.split('.').pop() || 'bin'
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-  return data.publicUrl
+  return uploadToStorage(STORAGE_BUCKET, file)
 }

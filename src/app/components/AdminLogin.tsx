@@ -1,40 +1,91 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { GraduationCap, Eye, EyeOff, Lock, Mail, BookOpen, Users, Award, Shield } from 'lucide-react'
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
+import { logError } from '../../lib/logger'
+import { useIsAdmin } from '../../hooks/useIsAdmin'
 
-interface AdminLoginProps {
-  onLogin: () => void
-}
+const MAX_ATTEMPTS = 5
+const LOCKOUT_DURATION = 15 * 60 * 1000
 
-export function AdminLogin({ onLogin }: AdminLoginProps) {
+export function AdminLogin() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [attempts, setAttempts] = useState(0)
+  const [lockedOut, setLockedOut] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      setAttempts(0)
+      setLockedOut(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (attempts >= MAX_ATTEMPTS) {
+      const timer = setTimeout(() => {
+        setAttempts(0)
+        setLockedOut(false)
+      }, LOCKOUT_DURATION)
+      return () => clearTimeout(timer)
+    }
+  }, [attempts])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 850))
 
-    if (email === 'admin@jcmutis.edu.co' && password === 'admin123') {
-      onLogin()
-      navigate('/admin')
-    } else {
-      setError('Credenciales incorrectas. Verifica tu correo y contraseña.')
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      setLoading(false)
+      const newAttempts = attempts + 1
+      setAttempts(newAttempts)
+
+      if (newAttempts >= MAX_ATTEMPTS) {
+        setLockedOut(true)
+        setPassword('')
+        setTimeout(() => {
+          navigate('/')
+        }, 3000)
+      } else {
+        setError('Correo o contraseña incorrectos.')
+      }
+      return
     }
-    setLoading(false)
-  }
 
-  const features = [
-    { icon: BookOpen, text: 'Crear y editar eventos institucionales' },
-    { icon: Users, text: 'Gestionar el calendario académico' },
-    { icon: Award, text: 'Publicar información para la comunidad' },
-    { icon: Shield, text: 'Acceso seguro y controlado' },
-  ]
+    const { data: { user: loggedUser } } = await supabase.auth.getUser()
+
+    if (!loggedUser) {
+      setLoading(false)
+      setError('No se pudo verificar la sesión.')
+      return
+    }
+
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', loggedUser.id)
+      .maybeSingle()
+
+    setLoading(false)
+
+    if (roleError || roleData?.role !== 'admin') {
+      await supabase.auth.signOut()
+      setError('Acceso denegado. Solo administradores.')
+      return
+    }
+
+    navigate('/admin')
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', backgroundColor: '#F8F8F8' }}>
@@ -55,7 +106,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
 
         <div style={{ position: 'relative' }}>
           <div style={{ width: 60, height: 60, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '32px' }}>
-            <GraduationCap size={30} color="#FFFFFF" />
+            <Lock size={30} color="#FFFFFF" />
           </div>
 
           <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '12px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '12px' }}>
@@ -71,7 +122,9 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {features.map(({ icon: Icon, text }) => (
+            {[
+              { icon: Lock, text: 'Acceso seguro y controlado' },
+            ].map(({ icon: Icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: 32, height: 32, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={15} color="rgba(255,255,255,0.85)" />
@@ -92,7 +145,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
         <div style={{ width: '100%', maxWidth: '420px' }}>
           <div className="lg:hidden" style={{ textAlign: 'center', marginBottom: '40px' }}>
             <div style={{ width: 52, height: 52, backgroundColor: '#006400', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <GraduationCap size={26} color="#FFFFFF" />
+              <Lock size={26} color="#FFFFFF" />
             </div>
             <div style={{ fontSize: '15px', fontWeight: 700, color: '#1A1A1A' }}>Colegio José Celestino Mutis</div>
           </div>
@@ -104,84 +157,106 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
             Ingresa tus credenciales para acceder al panel de administración.
           </p>
 
-          <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.18)', borderRadius: '8px', padding: '12px 14px', marginBottom: '28px', fontSize: '13px', color: '#2E6B2E', lineHeight: 1.5 }}>
-            <span style={{ fontWeight: 700 }}>Demo:</span> admin@jcmutis.edu.co / admin123
-          </div>
-
-          {error && (
-            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px 14px', marginBottom: '20px', fontSize: '14px', color: '#B91C1C', lineHeight: 1.5 }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
-                Correo electrónico
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@jcmutis.edu.co"
-                  required
-                  style={{ width: '100%', paddingLeft: '40px', paddingRight: '14px', height: '46px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
-                  onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
-                  onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
-                />
+          {lockedOut ? (
+            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '16px 20px', marginBottom: '24px', textAlign: 'center' }}>
+              <div style={{ color: '#DC2626', fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>
+                Acceso denegado.
+              </div>
+              <div style={{ color: '#5A7A5A', fontSize: '13px', lineHeight: 1.6 }}>
+                Has superado el número máximo de intentos permitidos.
+              </div>
+              <div style={{ color: '#5A7A5A', fontSize: '13px', lineHeight: 1.6, marginTop: '8px' }}>
+                Si necesitas acceso comunícate con el administrador del sistema.
               </div>
             </div>
+          ) : (
+            <>
+              {error && (
+                <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px 14px', marginBottom: '20px', fontSize: '14px', color: '#DC2626', lineHeight: 1.5 }}>
+                  {error}
+                </div>
+              )}
 
-            <div>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
-                Contraseña
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  style={{ width: '100%', paddingLeft: '40px', paddingRight: '44px', height: '46px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
-                  onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
-                  onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
-                />
+              {attempts > 0 && attempts < MAX_ATTEMPTS && (
+                <div style={{ backgroundColor: '#FFFBEB', border: '1px solid rgba(220,180,0,0.25)', borderRadius: '8px', padding: '10px 14px', marginBottom: '20px', fontSize: '13px', color: '#92400E', lineHeight: 1.5 }}>
+                  Intento {attempts} de {MAX_ATTEMPTS}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
+                    Correo electrónico
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="tu@email.com"
+                      required
+                      disabled={lockedOut}
+                      style={{ width: '100%', paddingLeft: '40px', paddingRight: '14px', height: '46px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                      onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
+                      onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
+                    Contraseña
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      disabled={lockedOut}
+                      style={{ width: '100%', paddingLeft: '40px', paddingRight: '44px', height: '46px', border: '1.5px solid rgba(0,0,0,0.11)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                      onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
+                      onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.11)'}
+                    />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      onClick={() => setShowPassword(!showPassword)}
+                      disabled={lockedOut}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#5A7A5A', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#5A7A5A', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                  type="submit"
+                  disabled={loading || lockedOut}
+                  style={{
+                    backgroundColor: loading || lockedOut ? '#228B22' : '#006400',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '14px',
+                    borderRadius: '8px',
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    cursor: loading || lockedOut ? 'not-allowed' : 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.2s',
+                    opacity: loading || lockedOut ? 0.85 : 1,
+                  }}
+                  onMouseEnter={e => { if (!loading && !lockedOut) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22' }}
+                  onMouseLeave={e => { if (!loading && !lockedOut) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400' }}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {loading ? 'Verificando...' : 'Ingresar →'}
                 </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                backgroundColor: loading ? '#228B22' : '#006400',
-                color: '#FFFFFF',
-                border: 'none',
-                padding: '14px',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: 700,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-                opacity: loading ? 0.85 : 1,
-              }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22' }}
-              onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400' }}
-            >
-              {loading ? 'Verificando credenciales...' : 'Ingresar al Panel →'}
-            </button>
-          </form>
+              </form>
+            </>
+          )}
 
           <button
             onClick={() => navigate('/')}

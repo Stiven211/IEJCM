@@ -1,25 +1,26 @@
 import { supabase } from '../lib/supabase'
+import { uploadToStorage } from '../lib/storage'
+import { logError } from '../lib/logger'
+import type { GalleryItem } from '../app/types'
 
-export interface GalleryItem {
-  id: string
-  title: string
-  description?: string
-  image_url: string
-  category?: string
-  active?: boolean
-  created_at?: string
-}
+export type { GalleryItem }
 
 const STORAGE_BUCKET = 'gallery'
 
-export async function getAllGalleryItems() {
-  const { data, error } = await supabase
+export async function getAllGalleryItems(activeOnly = true) {
+  let query = supabase
     .from('gallery')
     .select('*')
-    .eq('active', true)
     .order('created_at', { ascending: false })
 
+  if (activeOnly) {
+    query = query.eq('active', true)
+  }
+
+  const { data, error } = await query
+
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -34,6 +35,7 @@ export async function getGalleryItemById(id: string) {
     .maybeSingle()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -48,6 +50,7 @@ export async function createGalleryItem(payload: Omit<GalleryItem, 'id' | 'creat
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -63,6 +66,7 @@ export async function updateGalleryItem(id: string, payload: Omit<GalleryItem, '
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -76,23 +80,11 @@ export async function removeGalleryItem(id: string) {
     .eq('id', id)
 
   if (error) {
+    logError(error)
     throw error
   }
 }
 
 export async function uploadGalleryImage(file: File) {
-  const ext = file.name.split('.').pop() || 'bin'
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-  return data.publicUrl
+  return uploadToStorage(STORAGE_BUCKET, file)
 }

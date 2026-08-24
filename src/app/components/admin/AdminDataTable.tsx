@@ -21,7 +21,7 @@ export interface AdminDataTableProps<T> {
   deleteConfirmId: string | null
 }
 
-export function AdminDataTable<T>({
+export function AdminDataTable<T extends { title?: string }>({
   columns,
   data,
   loading,
@@ -102,6 +102,7 @@ export function AdminDataTable<T>({
                       <div style={{ display: 'flex', gap: '6px' }}>
                         <button
                           onClick={() => onEdit(item)}
+                          aria-label="Editar"
                           title="Editar"
                           style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#006400', transition: 'all 0.15s' }}
                           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#E8F5E9'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#006400' }}
@@ -111,6 +112,7 @@ export function AdminDataTable<T>({
                         </button>
                         <button
                           onClick={() => onDeleteRequest(baseKey)}
+                          aria-label="Eliminar"
                           title="Eliminar"
                           style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.1)', backgroundColor: '#FFFFFF', cursor: 'pointer', color: '#DC2626', transition: 'all 0.15s' }}
                           onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#FEF2F2'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#DC2626' }}

@@ -1,19 +1,26 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import {
-  GraduationCap, LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen, LogOut,
-  Edit2, Trash2, Search, Check, AlertTriangle, Upload,
+  LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen,
+  Search, Upload, FileText,
 } from 'lucide-react'
 import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
-import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
+import { CATEGORY_LABELS } from '../data/categories'
 import { AdminSidebar } from './admin/AdminSidebar'
 import { AdminHeader } from './admin/AdminHeader'
 import { AdminDataTable } from './admin/AdminDataTable'
 import { AdminModal } from './admin/AdminModal'
+import { AdminStatusMessages } from './admin/AdminStatusMessages'
+import { useAdminStatus } from '../../hooks/useAdminStatus'
+import { inputStyle, handleFocus, handleBlur } from '../../utils/admin-ui-helpers'
+import { logError } from '../../lib/logger'
+import { ResilientImage } from './ui/ResilientImage'
+import { AdminOverview } from './admin/AdminOverview'
 
 interface AdminDashboardProps {
   onLogout: () => void
+  adminUser: { initials: string; name: string; email: string } | null
 }
 
 type ModalMode = 'create' | 'edit' | null
@@ -44,16 +51,16 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
-const TODAY = new Date('2026-06-01T00:00:00')
-
 function getStatus(dateStr: string) {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const d = new Date(dateStr + 'T00:00:00')
-  if (d < TODAY) return { label: 'Pasado', bg: '#F5F3FF', text: '#5B21B6' }
-  if (d.getFullYear() === 2026 && d.getMonth() === 5) return { label: 'Este mes', bg: '#FFFBEB', text: '#92400E' }
+  if (d < today) return { label: 'Pasado', bg: '#F5F3FF', text: '#5B21B6' }
+  if (d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()) return { label: 'Este mes', bg: '#FFFBEB', text: '#92400E' }
   return { label: 'Próximo', bg: '#E8F5E9', text: '#006400' }
 }
 
-export function AdminDashboard({ onLogout }: AdminDashboardProps) {
+export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
   const navigate = useNavigate()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -62,19 +69,20 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState('')
-  const [errorMsg, setErrorMsg] = useState('')
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { successMsg, errorMsg, showSuccess, showError } = useAdminStatus()
 
   const fetchEvents = async () => {
     setLoading(true)
     try {
-      const data = await eventService.getAllEvents()
+      const data = await eventService.getAllEvents(false)
       setEvents(data)
     } catch (err) {
-      console.error('Error fetching events:', err)
+      logError(err, { action: 'fetchEvents' })
       showError('No se pudieron cargar los eventos. Intente de nuevo.')
     } finally {
       setLoading(false)
@@ -84,16 +92,6 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   useEffect(() => {
     fetchEvents()
   }, [])
-
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(''), 3000)
-  }
-
-  const showError = (msg: string) => {
-    setErrorMsg(msg)
-    setTimeout(() => setErrorMsg(''), 5000)
-  }
 
   const openCreate = () => {
     setFormData(EMPTY_FORM)
@@ -129,7 +127,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       setFormData(prev => ({ ...prev, image: url }))
       setPreview(url)
     } catch (err) {
-      console.error('Error uploading image:', err)
+      logError(err, { action: 'uploadEventImage' })
       showError('No se pudo subir la imagen. Intente de nuevo.')
     } finally {
       setUploading(false)
@@ -137,6 +135,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   }
 
   const handleSave = async () => {
+    setSaving(true)
     try {
       if (modalMode === 'create') {
         await eventService.createEvent(formData)
@@ -145,12 +144,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         await eventService.updateEvent(editingEvent.id, formData)
         showSuccess('Evento actualizado exitosamente.')
       }
+      setModalMode(null)
+      fetchEvents()
     } catch (err) {
-      console.error('Error saving event:', err)
+      logError(err, { action: 'saveEvent' })
       showError('No se pudo guardar el evento. Intente de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setModalMode(null)
-    fetchEvents()
   }
 
   const handleDelete = async (id: string) => {
@@ -158,7 +159,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       await eventService.removeEvent(id)
       showSuccess('Evento eliminado correctamente.')
     } catch (err) {
-      console.error('Error deleting event:', err)
+      logError(err, { action: 'deleteEvent' })
       showError('No se pudo eliminar el evento. Intente de nuevo.')
     }
     setDeleteConfirmId(null)
@@ -176,35 +177,13 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
   const stats = {
     total: events.length,
-    upcoming: events.filter(e => new Date(e.date + 'T00:00:00') >= TODAY).length,
+    upcoming: events.filter(e => new Date(e.date + 'T00:00:00') >= new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())).length,
     thisMonth: events.filter(e => {
       const d = new Date(e.date + 'T00:00:00')
-      return d.getFullYear() === 2026 && d.getMonth() === 5
+      const now = new Date()
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
     }).length,
-    past: events.filter(e => new Date(e.date + 'T00:00:00') < TODAY).length,
-  }
-
-  const isFormValid = formData.title.trim() && formData.date && formData.time.trim() && formData.location.trim()
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '10px 14px',
-    border: '1.5px solid rgba(0,0,0,0.11)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    outline: 'none',
-    boxSizing: 'border-box',
-    backgroundColor: '#FFFFFF',
-    color: '#1A1A1A',
-    transition: 'border-color 0.2s',
-  }
-
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.target.style.borderColor = '#006400'
-  }
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.target.style.borderColor = 'rgba(0,0,0,0.11)'
+    past: events.filter(e => new Date(e.date + 'T00:00:00') < new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())).length,
   }
 
   return (
@@ -216,8 +195,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
+          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
         ]}
-        user={{ initials: 'A', name: 'Administrador', email: 'admin@jcmutis.edu.co' }}
+        user={adminUser!}
         onLogout={onLogout}
       />
 
@@ -231,16 +211,9 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         />
 
         <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
-          {successMsg && (
-            <div style={{ backgroundColor: '#E8F5E9', border: '1px solid rgba(0,100,0,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#006400', fontSize: '14px', fontWeight: 600 }}>
-              <Check size={16} /> {successMsg}
-            </div>
-          )}
-          {errorMsg && (
-            <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#DC2626', fontSize: '14px', fontWeight: 600 }}>
-              <AlertTriangle size={16} /> {errorMsg}
-            </div>
-          )}
+          <AdminStatusMessages successMsg={successMsg} errorMsg={errorMsg} />
+
+          <AdminOverview eventsCount={events.length} />
 
           {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '24px' }}>
@@ -260,12 +233,15 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           {/* Search */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div style={{ position: 'relative', maxWidth: '380px', flex: 1 }}>
+              <label htmlFor="admin-search-events" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Buscar evento</label>
               <Search size={14} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
               <input
+                id="admin-search-events"
                 type="text"
                 placeholder="Buscar evento por título o ubicación..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                aria-label="Buscar evento por título o ubicación"
                 style={{ width: '100%', paddingLeft: '34px', paddingRight: '12px', height: '40px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
                 onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.09)'}
@@ -280,11 +256,11 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
               { key: 'title', header: 'Evento', render: (item: Event) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ width: 44, height: 44, borderRadius: '8px', overflow: 'hidden', flexShrink: 0, backgroundColor: '#E8F5E9' }}>
-                    {item.image ? (
-                      <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    ) : (
-                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A7A5A', fontSize: '10px', fontWeight: 700 }}>IMG</div>
-                    )}
+                   {item.image ? (
+                     <ResilientImage src={item.image} alt={item.title} fallbackLabel="Imagen del evento no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                   ) : (
+                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5A7A5A', fontSize: '10px', fontWeight: 700 }}>IMG</div>
+                   )}
                   </div>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 600, color: '#1A1A1A', marginBottom: '2px' }}>{item.title}</div>
@@ -332,7 +308,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
           onSave={handleSave}
           saveLabel={modalMode === 'create' ? 'Crear Evento' : 'Guardar Cambios'}
           cancelLabel="Cancelar"
-          saving={false}
+          saving={saving}
         >
           {/* Title */}
           <div>
@@ -405,7 +381,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </button>
             {(formData.image || preview) && (
               <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
-                <img src={formData.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                 <ResilientImage src={formData.image} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
           </div>

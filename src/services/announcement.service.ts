@@ -1,23 +1,24 @@
 
 import { supabase } from '../lib/supabase'
+import { logError } from '../lib/logger'
+import type { Announcement } from '../app/types'
 
-export interface Announcement {
-  id: string
-  title: string
-  content: string
-  category?: string
-  active?: boolean
-  published_at?: string
-  created_at?: string
-}
+export type { Announcement }
 
-export async function getAllAnnouncements() {
-  const { data, error } = await supabase
+export async function getAllAnnouncements(activeOnly = true) {
+  let query = supabase
     .from('announcements')
     .select('*')
     .order('created_at', { ascending: false })
 
+  if (activeOnly) {
+    query = query.eq('active', true)
+  }
+
+  const { data, error } = await query
+
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -32,6 +33,7 @@ export async function getAnnouncementById(id: string) {
     .maybeSingle()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -46,6 +48,7 @@ export async function createAnnouncement(payload: Omit<Announcement, 'id' | 'cre
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -61,6 +64,7 @@ export async function updateAnnouncement(id: string, payload: Omit<Announcement,
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -74,6 +78,7 @@ export async function removeAnnouncement(id: string) {
     .eq('id', id)
 
   if (error) {
+    logError(error)
     throw error
   }
 }

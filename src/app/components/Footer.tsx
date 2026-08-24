@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router'
-import { GraduationCap, MapPin, Phone, Mail, Clock, Facebook, Instagram, Youtube } from 'lucide-react'
+import { GraduationCap, MapPin, Phone, Mail, Clock, Facebook, Instagram } from 'lucide-react'
+import { TikTokIcon } from './ui/TikTokIcon'
 import * as schoolInfoService from '../../services/schoolInfo.service'
+import { ResilientImage } from './ui/ResilientImage'
+
+const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 export function Footer() {
   const [info, setInfo] = useState<schoolInfoService.SchoolInfo | null>(null)
@@ -31,7 +35,7 @@ export function Footer() {
   const socials = [
     ...(facebook ? [{ Icon: Facebook, href: facebook }] : []),
     ...(instagram ? [{ Icon: Instagram, href: instagram }] : []),
-    ...(youtube ? [{ Icon: Youtube, href: youtube }] : []),
+    ...(youtube ? [{ Icon: TikTokIcon, href: youtube, label: 'TikTok' }] : []),
   ]
 
   return (
@@ -41,9 +45,20 @@ export function Footer() {
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-              <div style={{ width: 40, height: 40, backgroundColor: '#006400', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <GraduationCap size={20} color="#FFFFFF" />
-              </div>
+              {info?.logo_url ? (
+                <ResilientImage
+                  src={info.logo_url}
+                  alt={schoolName}
+                  fallbackLabel="Logo institucional no disponible"
+                  decoding="async"
+                  style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, backgroundColor: '#006400' }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div style={{ width: 40, height: 40, backgroundColor: '#006400', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <GraduationCap size={20} color="#FFFFFF" />
+                </div>
+              )}
               <div>
                 <div style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1.3 }}>{schoolName}</div>
                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>San José del Guaviare</div>
@@ -52,21 +67,21 @@ export function Footer() {
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.85, marginBottom: '24px' }}>
               Formando ciudadanos íntegros y comprometidos con el desarrollo de San José del Guaviare desde 1978.
             </p>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              {socials.map(({ Icon, href }, i) => (
-                <a
-                  key={i}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s', textDecoration: 'none' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(0,100,0,0.5)'}
-                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(255,255,255,0.07)'}
-                >
-                  <Icon size={15} color="rgba(255,255,255,0.6)" />
-                </a>
-              ))}
-            </div>
+             <div style={{ display: 'flex', gap: '10px' }}>
+               {socials.map(({ Icon, href }, i) => (
+                 <a
+                   key={i}
+                   href={href}
+                   target="_blank"
+                   rel="noreferrer"
+                   style={{ width: 34, height: 34, backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: TRANSITION, textDecoration: 'none' }}
+                   onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(0,100,0,0.5)'}
+                   onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.backgroundColor = 'rgba(255,255,255,0.07)'}
+                 >
+                   <Icon size={15} color="rgba(255,255,255,0.6)" />
+                 </a>
+               ))}
+             </div>
           </div>
 
           <div>
@@ -74,20 +89,23 @@ export function Footer() {
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '11px' }}>
               {[
                 { label: 'Inicio', to: '/' },
+                { label: 'Avisos', to: '/avisos' },
+                { label: 'Sobre Nosotros', to: '/nosotros' },
                 { label: 'Eventos', to: '/eventos' },
-                { label: 'Sobre Nosotros', to: '/#sobre-nosotros' },
-                { label: 'Contacto', to: '/#contacto' },
+                { label: 'Galería', to: '/galeria' },
+                { label: 'Documentos', to: '/documentos' },
+                { label: 'Contacto', to: '/contacto' },
                 { label: 'Acceso Administrativo', to: '/admin' },
               ].map(item => (
                 <li key={item.label}>
-                  <Link
-                    to={item.to}
-                    style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: '14px', transition: 'color 0.2s' }}
-                    onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#FFFFFF'}
-                    onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.52)'}
-                  >
-                    {item.label}
-                  </Link>
+                   <Link
+                     to={item.to}
+                     style={{ color: 'rgba(255,255,255,0.52)', textDecoration: 'none', fontSize: '14px', transition: TRANSITION }}
+                     onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#FFFFFF'}
+                     onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.52)'}
+                   >
+                     {item.label}
+                   </Link>
                 </li>
               ))}
             </ul>

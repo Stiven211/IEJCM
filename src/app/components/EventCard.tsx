@@ -1,18 +1,21 @@
-
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { MapPin, Clock } from 'lucide-react'
 import type { Event } from '../types'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../data/categories'
+import { ResilientImage } from './ui/ResilientImage'
 
 interface EventCardProps {
   event: Event
   onClick: () => void
 }
 
-export function EventCard({ event, onClick }: EventCardProps) {
-  const [hovered, setHovered] = useState(false)
+const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
-  const date = new Date(event.date + 'T00:00:00')
+export const EventCard = memo(({ event, onClick }: EventCardProps) => {
+  const [hovered, setHovered] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
+
+  const date = useMemo(() => new Date(event.date + 'T00:00:00'), [event.date])
   const day = date.getDate()
   const month = date.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '').toUpperCase()
   const year = date.getFullYear()
@@ -32,22 +35,28 @@ export function EventCard({ event, onClick }: EventCardProps) {
         border: `1.5px solid ${hovered ? '#006400' : 'rgba(0,0,0,0.07)'}`,
         boxShadow: hovered ? '0 10px 36px rgba(0,100,0,0.13)' : '0 2px 10px rgba(0,0,0,0.06)',
         cursor: 'pointer',
-        transition: 'all 0.28s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: TRANSITION,
         transform: hovered ? 'translateY(-5px)' : 'translateY(0)',
         display: 'flex',
         flexDirection: 'column',
       }}
     >
       <div style={{ position: 'relative', height: '210px', overflow: 'hidden', backgroundColor: '#E8F5E9', flexShrink: 0 }}>
-        <img
+        <ResilientImage
           src={event.image}
           alt={event.title}
+          fallbackLabel="Imagen del evento no disponible"
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setImgLoaded(true)}
           style={{
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            transition: 'transform 0.45s ease',
+            transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
             transform: hovered ? 'scale(1.07)' : 'scale(1)',
+            opacity: imgLoaded ? 1 : 0,
+            willChange: hovered ? 'transform' : 'auto',
           }}
         />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 55%)' }} />
@@ -127,6 +136,7 @@ export function EventCard({ event, onClick }: EventCardProps) {
         </div>
 
         <button
+          onClick={e => { e.stopPropagation(); onClick() }}
           style={{
             width: '100%',
             backgroundColor: hovered ? '#006400' : 'transparent',
@@ -137,15 +147,20 @@ export function EventCard({ event, onClick }: EventCardProps) {
             fontSize: '14px',
             fontWeight: 600,
             cursor: 'pointer',
-            transition: 'all 0.28s ease',
+            transition: TRANSITION,
             letterSpacing: '0.01em',
             fontFamily: 'inherit',
+            transform: hovered ? 'scale(1.01)' : 'scale(1)',
           }}
+          onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.97)'}
+          onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = hovered ? 'scale(1.01)' : 'scale(1)'}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
         >
           Ver más →
         </button>
       </div>
     </div>
   )
-}
+})
 
+EventCard.displayName = 'EventCard'

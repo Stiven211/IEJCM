@@ -1,23 +1,9 @@
 import { supabase } from '../lib/supabase'
+import { uploadToStorage } from '../lib/storage'
+import { logError } from '../lib/logger'
+import type { SchoolInfo } from '../app/types'
 
-export interface SchoolInfo {
-  id: string
-  school_name: string
-  history: string
-  mission: string
-  vision: string
-  address: string
-  phone: string
-  email: string
-  facebook: string
-  instagram: string
-  youtube: string
-  logo_url: string
-  hero_image_url: string
-  hero_badge: string
-  hero_badge_color: string
-  updated_at: string
-}
+export type { SchoolInfo }
 
 export async function getSchoolInfo() {
   const { data, error } = await supabase
@@ -27,6 +13,7 @@ export async function getSchoolInfo() {
     .maybeSingle()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -34,13 +21,43 @@ export async function getSchoolInfo() {
 }
 
 export async function upsertSchoolInfo(payload: Omit<SchoolInfo, 'id' | 'updated_at'>) {
+  const { data: existing, error: fetchError } = await supabase
+    .from('school_info')
+    .select('id')
+    .limit(1)
+    .maybeSingle()
+
+  if (fetchError) {
+    logError(fetchError)
+    throw fetchError
+  }
+
+  const updatedAt = new Date().toISOString()
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from('school_info')
+      .update({ ...payload, updated_at: updatedAt })
+      .eq('id', existing.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      logError(error)
+      throw error
+    }
+
+    return data as SchoolInfo
+  }
+
   const { data, error } = await supabase
     .from('school_info')
-    .upsert([{ ...payload, updated_at: new Date().toISOString() }])
+    .insert([{ ...payload, updated_at: updatedAt }])
     .select('*')
     .single()
 
   if (error) {
+    logError(error)
     throw error
   }
 
@@ -48,18 +65,5 @@ export async function upsertSchoolInfo(payload: Omit<SchoolInfo, 'id' | 'updated
 }
 
 export async function uploadSchoolInfoMedia(file: File) {
-  const ext = file.name.split('.').pop() || 'bin'
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-  const { error } = await supabase.storage.from('school-info').upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  const { data } = supabase.storage.from('school-info').getPublicUrl(path)
-  return data.publicUrl
+  return uploadToStorage('school-info', file)
 }

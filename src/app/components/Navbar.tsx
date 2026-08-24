@@ -2,24 +2,34 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import { Menu, X, GraduationCap } from 'lucide-react'
 import * as schoolInfoService from '../../services/schoolInfo.service'
+import { ResilientImage } from './ui/ResilientImage'
 
 const NAV_LINKS = [
-  { to: '/', label: 'Inicio', isHash: false },
-  { to: '/eventos', label: 'Eventos', isHash: false },
+  { to: '/#inicio', label: 'Inicio', isHash: true },
+  { to: '/#avisos', label: 'Avisos', isHash: true },
   { to: '/#sobre-nosotros', label: 'Sobre Nosotros', isHash: true },
+  { to: '/#eventos', label: 'Eventos', isHash: true },
+  { to: '/#galeria', label: 'Galería', isHash: true },
+  { to: '/documentos', label: 'Documentos' },
   { to: '/#contacto', label: 'Contacto', isHash: true },
 ]
+
+const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [schoolName, setSchoolName] = useState('Colegio José Celestino Mutis')
+  const [schoolInfo, setSchoolInfo] = useState<schoolInfoService.SchoolInfo | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
   useEffect(() => {
     let cancelled = false
     schoolInfoService.getSchoolInfo().then(data => {
-      if (!cancelled && data?.school_name) setSchoolName(data.school_name)
+      if (!cancelled && data) {
+        setSchoolInfo(data)
+        if (data.school_name) setSchoolName(data.school_name)
+      }
     })
     return () => { cancelled = true }
   }, [])
@@ -65,18 +75,29 @@ export function Navbar() {
         height: '70px',
       }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', flexShrink: 0 }}>
-          <div style={{
-            width: 42,
-            height: 42,
-            backgroundColor: '#FFFFFF',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <GraduationCap size={22} style={{ color: '#006400' }} />
-          </div>
+          {schoolInfo?.logo_url ? (
+            <ResilientImage
+              src={schoolInfo.logo_url}
+              alt={schoolName}
+              fallbackLabel="Logo institucional no disponible"
+              decoding="async"
+              style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, backgroundColor: '#FFFFFF' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <div style={{
+              width: 42,
+              height: 42,
+              backgroundColor: '#FFFFFF',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <GraduationCap size={22} style={{ color: '#006400' }} />
+            </div>
+          )}
           <div>
             <div style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '14px', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
               {schoolName}
@@ -103,7 +124,7 @@ export function Navbar() {
                   cursor: 'pointer',
                   padding: '8px 14px',
                   borderRadius: '6px',
-                  transition: 'all 0.2s',
+                  transition: TRANSITION,
                   fontFamily: 'inherit',
                 }}
                 onMouseEnter={e => {
@@ -118,6 +139,8 @@ export function Navbar() {
                     ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)'
                   }
                 }}
+                onMouseDown={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)' }}
+                onMouseUp={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)' }}
               >
                 {link.label}
               </button>
@@ -137,7 +160,7 @@ export function Navbar() {
               fontSize: '13px',
               fontWeight: 500,
               cursor: 'pointer',
-              transition: 'all 0.2s',
+              transition: TRANSITION,
               fontFamily: 'inherit',
               letterSpacing: '0.01em',
             }}
@@ -149,6 +172,8 @@ export function Navbar() {
               (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
               ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'
             }}
+            onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'}
+            onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
           >
             Acceso Admin
           </button>
@@ -156,6 +181,7 @@ export function Navbar() {
 
         <button
           className="md:hidden"
+          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
             background: 'none',
@@ -165,6 +191,7 @@ export function Navbar() {
             padding: '8px',
             display: 'flex',
             alignItems: 'center',
+            transition: TRANSITION,
           }}
         >
           {menuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -178,6 +205,7 @@ export function Navbar() {
             backgroundColor: '#004d00',
             borderTop: '1px solid rgba(255,255,255,0.08)',
             paddingBottom: '12px',
+            animation: 'fadeInDown 200ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
           {NAV_LINKS.map(link => (
@@ -196,7 +224,10 @@ export function Navbar() {
                 fontSize: '15px',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
+                transition: TRANSITION,
               }}
+              onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0.7'}
+              onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
             >
               {link.label}
             </button>
@@ -214,7 +245,10 @@ export function Navbar() {
                 fontSize: '14px',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
+                transition: TRANSITION,
               }}
+              onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)'}
+              onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
             >
               Acceso Admin
             </button>

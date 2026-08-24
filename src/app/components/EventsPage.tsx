@@ -1,9 +1,14 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router'
 import { Search, Calendar } from 'lucide-react'
 import { EventCard } from './EventCard'
+import { EventsSkeleton } from './ui/EventsSkeleton'
+import { LoadErrorState } from './ui/LoadErrorState'
 import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
+import { logError } from '../../lib/logger'
+
+const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 type FilterTab = 'upcoming' | 'this-month' | 'past'
 
@@ -11,23 +16,28 @@ export function EventsPage() {
   const navigate = useNavigate()
   const [allEvents, setAllEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('upcoming')
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await eventService.getAllEvents()
-        setAllEvents(data)
-      } catch (err) {
-        console.error('Error cargando eventos:', err)
-      } finally {
-        setLoading(false)
-      }
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await eventService.getAllEvents()
+      setAllEvents(data.filter(e => e.active !== false))
+    } catch (err) {
+      setError(true)
+      logError(err, { action: 'loadEvents', page: 'events' })
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const today = useMemo(() => {
     const d = new Date()
@@ -100,7 +110,7 @@ export function EventsPage() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '36px 24px' }}>
+      <div className="fade-in-up" style={{ maxWidth: '1280px', margin: '0 auto', padding: '36px 24px', animationDelay: '80ms' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', marginBottom: '28px', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', backgroundColor: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: '10px', padding: '4px', gap: '2px' }}>
             {tabs.map(tab => (
@@ -117,11 +127,13 @@ export function EventsPage() {
                   fontWeight: activeFilter === tab.key ? 600 : 400,
                   cursor: 'pointer',
                   fontFamily: 'inherit',
-                  transition: 'all 0.2s',
+                  transition: TRANSITION,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                 }}
+                onMouseDown={e => { if (activeFilter !== tab.key) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)' }}
+                onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
               >
                 {tab.label}
                 <span style={{
@@ -140,13 +152,16 @@ export function EventsPage() {
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <div style={{ position: 'relative' }}>
+              <label htmlFor="events-search" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Buscar eventos</label>
               <Search size={14} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
               <input
+                id="events-search"
                 type="text"
                 placeholder="Buscar eventos..."
+                aria-label="Buscar eventos por título, descripción o ubicación"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ paddingLeft: '34px', paddingRight: '12px', height: '40px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', fontFamily: 'inherit', minWidth: '200px', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                style={{ paddingLeft: '34px', paddingRight: '12px', height: '40px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', fontFamily: 'inherit', minWidth: '200px', boxSizing: 'border-box', transition: TRANSITION }}
                 onFocus={e => (e.target as HTMLInputElement).style.borderColor = '#006400'}
                 onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.09)'}
               />
@@ -154,7 +169,9 @@ export function EventsPage() {
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              style={{ height: '40px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
+              style={{ height: '40px', padding: '0 12px', border: '1px solid rgba(0,0,0,0.09)', borderRadius: '8px', fontSize: '14px', color: '#1A1A1A', backgroundColor: '#FFFFFF', outline: 'none', fontFamily: 'inherit', cursor: 'pointer', transition: TRANSITION }}
+              onFocus={e => (e.currentTarget as HTMLSelectElement).style.borderColor = '#006400'}
+              onBlur={e => (e.currentTarget as HTMLSelectElement).style.borderColor = 'rgba(0,0,0,0.09)'}
             >
               <option value="all">Todas las categorías</option>
               <option value="academic">Académico</option>
@@ -169,21 +186,25 @@ export function EventsPage() {
           {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''} encontrado{filteredEvents.length !== 1 ? 's' : ''}
         </div>
 
+        <div aria-busy={loading}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '80px 24px', color: '#5A7A5A' }}>Cargando eventos...</div>
+          <EventsSkeleton />
+        ) : error ? (
+          <LoadErrorState message="No se pudieron cargar los eventos." onRetry={load} />
         ) : filteredEvents.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
+          <div className="fade-in-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', animationDelay: '120ms' }}>
             {filteredEvents.map(event => (
               <EventCard key={event.id} event={event} onClick={() => navigate(`/eventos/${event.id}`)} />
             ))}
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '80px 24px', color: '#5A7A5A' }}>
+          <div className="fade-in" style={{ textAlign: 'center', padding: '80px 24px', color: '#5A7A5A' }}>
             <Calendar size={52} style={{ color: '#C8E6C9', margin: '0 auto 18px' }} />
             <div style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: '#1A1A1A' }}>No se encontraron eventos</div>
             <div style={{ fontSize: '14px' }}>Intenta con otros filtros o términos de búsqueda.</div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
