@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { Lock, Mail, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { logError } from '../../lib/logger'
-import { useIsAdmin } from '../../hooks/useIsAdmin'
 
 const MAX_ATTEMPTS = 5
 const LOCKOUT_DURATION = 15 * 60 * 1000

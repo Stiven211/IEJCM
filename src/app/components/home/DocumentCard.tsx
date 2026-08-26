@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { FileText, Calendar, Download } from 'lucide-react'
 import type { Document } from '../../types'
-import { getCategoryLabel } from '../DocumentsPage'
+import { getCategoryLabel } from './DocumentCategory'
 
 interface DocumentCardProps {
   document: Document

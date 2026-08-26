@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowRight, BookOpen, CalendarDays, FileText, Image, Mail, Megaphone, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router'
-import * as eventService from '../../../services/event.service'
 import * as galleryService from '../../../services/gallery.service'
 import * as announcementService from '../../../services/announcement.service'
 import * as documentService from '../../../services/document.service'

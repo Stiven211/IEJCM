@@ -13,7 +13,7 @@ export function AboutPage() {
   const loadInfo = useCallback(async () => {
     setLoading(true)
     setError(false)
-    let cancelled = false
+    const cancelled = false
     try {
       const data = await schoolInfoService.getSchoolInfo()
       if (!cancelled) setSchoolInfo(data)

@@ -67,7 +67,7 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         key={label}
         type="button"
         aria-current={active ? 'page' : undefined}
-        onClick={() => { if (!active) mobile ? navigateMobile(to) : navigate(to) }}
+        onClick={() => { if (!active) void (mobile ? navigateMobile(to) : navigate(to)) }}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px',
           borderRadius: '8px', backgroundColor: active ? 'rgba(255,255,255,0.14)' : 'transparent',

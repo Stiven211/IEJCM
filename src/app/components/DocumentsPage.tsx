@@ -1,30 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Search, FileText, Download } from 'lucide-react'
+import { Search, FileText } from 'lucide-react'
 import { DocumentCard } from './home/DocumentCard'
 import { DocumentsSkeleton } from './ui/DocumentsSkeleton'
 import { LoadErrorState } from './ui/LoadErrorState'
 import * as documentService from '../../services/document.service'
 import type { Document } from '../../types'
 import { logError } from '../../lib/logger'
+import { CATEGORY_OPTIONS } from './home/DocumentCategory'
 
 const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
-
-const CATEGORY_OPTIONS = [
-  { value: 'todos', label: 'Todos' },
-  { value: 'excusas', label: 'Excusas' },
-  { value: 'permisos', label: 'Permisos' },
-  { value: 'circulares', label: 'Circulares' },
-  { value: 'formatos', label: 'Formatos' },
-  { value: 'guias', label: 'Guías' },
-  { value: 'comunicados', label: 'Comunicados' },
-  { value: 'institucional', label: 'Institucional' },
-  { value: 'otros', label: 'Otros' },
-] as const
-
-export function getCategoryLabel(category: string): string {
-  const option = CATEGORY_OPTIONS.find(opt => opt.value === category)
-  return option?.label || category
-}
 
 export function DocumentsPage() {
   const [allDocuments, setAllDocuments] = useState<Document[]>([])
