@@ -16,6 +16,69 @@ html {
   scroll-margin-top: 70px;
 }
 
+:focus-visible {
+  outline: 2px solid #006400;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #006400;
+  outline-offset: 2px;
+}
+
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+  }
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+}
+
+.md-hidden {
+  display: none !important;
+}
+
+@media (min-width: 769px) {
+  .md-hidden {
+    display: none !important;
+  }
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .sm\:inline {
+    display: inline !important;
+  }
+  .hidden.sm\:inline {
+    display: inline !important;
+  }
+}
+
 .fade-in-up {
   animation: fadeInUp 350ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }

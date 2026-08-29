@@ -231,10 +231,10 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
           </div>
 
           {/* Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <div style={{ position: 'relative', maxWidth: '380px', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: '1 1 240px', minWidth: '200px' }}>
               <label htmlFor="admin-search-events" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Buscar evento</label>
-              <Search size={14} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
+              <Search size={14} aria-hidden="true" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
               <input
                 id="admin-search-events"
                 type="text"
@@ -247,7 +247,7 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
                 onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(0,0,0,0.09)'}
               />
             </div>
-            <span style={{ color: '#5A7A5A', fontSize: '13px', whiteSpace: 'nowrap' }}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
+            <span aria-live="polite" style={{ color: '#5A7A5A', fontSize: '13px', whiteSpace: 'nowrap' }}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           </div>
 
           {/* Table */}
@@ -312,47 +312,47 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
         >
           {/* Title */}
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título del evento *</label>
-            <input type="text" value={formData.title} onChange={e => updateField('title', e.target.value)} placeholder="Ej: Feria de la Ciencia 2026" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+            <label htmlFor="event-title" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título del evento *</label>
+            <input id="event-title" type="text" value={formData.title} onChange={e => updateField('title', e.target.value)} placeholder="Ej: Feria de la Ciencia 2026" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
           </div>
 
           {/* Short description */}
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción breve *</label>
-            <textarea value={formData.description} onChange={e => updateField('description', e.target.value)} placeholder="Resumen del evento (máx. 150 caracteres)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+            <label htmlFor="event-description" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción breve *</label>
+            <textarea id="event-description" value={formData.description} onChange={e => updateField('description', e.target.value)} placeholder="Resumen del evento (máx. 150 caracteres)" rows={2} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
           </div>
 
           {/* Full description */}
           <div>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción completa</label>
-            <textarea value={formData.fullDescription} onChange={e => updateField('fullDescription', e.target.value)} placeholder="Descripción detallada del evento. Puedes usar líneas en blanco para separar párrafos." rows={6} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+            <label htmlFor="event-full-description" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Descripción completa</label>
+            <textarea id="event-full-description" value={formData.fullDescription} onChange={e => updateField('fullDescription', e.target.value)} placeholder="Descripción detallada del evento. Puedes usar líneas en blanco para separar párrafos." rows={6} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
           </div>
 
           {/* Date, Time, End Time */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '14px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Fecha *</label>
-              <input type="date" value={formData.date} onChange={e => updateField('date', e.target.value)} style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              <label htmlFor="event-date" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Fecha *</label>
+              <input id="event-date" type="date" value={formData.date} onChange={e => updateField('date', e.target.value)} style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora inicio *</label>
-              <input type="text" value={formData.time} onChange={e => updateField('time', e.target.value)} placeholder="8:00 AM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              <label htmlFor="event-time" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora inicio *</label>
+              <input id="event-time" type="text" value={formData.time} onChange={e => updateField('time', e.target.value)} placeholder="8:00 AM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora fin</label>
-              <input type="text" value={formData.endTime} onChange={e => updateField('endTime', e.target.value)} placeholder="12:00 PM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              <label htmlFor="event-endtime" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Hora fin</label>
+              <input id="event-endtime" type="text" value={formData.endTime} onChange={e => updateField('endTime', e.target.value)} placeholder="12:00 PM" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
             </div>
           </div>
 
           {/* Location + Category */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '14px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Ubicación *</label>
-              <input type="text" value={formData.location} onChange={e => updateField('location', e.target.value)} placeholder="Ej: Patio Central de la Institución" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              <label htmlFor="event-location" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Ubicación *</label>
+              <input id="event-location" type="text" value={formData.location} onChange={e => updateField('location', e.target.value)} placeholder="Ej: Patio Central de la Institución" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
-              <select value={formData.category} onChange={e => updateField('category', e.target.value as Event['category'])} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+              <label htmlFor="event-category" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Categoría</label>
+              <select id="event-category" value={formData.category} onChange={e => updateField('category', e.target.value as Event['category'])} style={{ ...inputStyle, cursor: 'pointer', minHeight: '42px' }} onFocus={handleFocus} onBlur={handleBlur}>
                 <option value="academic">Académico</option>
                 <option value="cultural">Cultural</option>
                 <option value="sports">Deportivo</option>

@@ -1,5 +1,5 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { GraduationCap, LogOut, Mail, Menu, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -29,27 +29,51 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
   const navigationSections = [...sections, { label: 'Mensajes', icon: Mail, to: '/admin/contact-messages' }]
   const [mobileOpen, setMobileOpen] = useState(false)
   const mobileTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuRef = useRef<HTMLElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
 
-  const closeMobileMenu = () => {
+  const closeMobileMenu = useCallback(() => {
     setMobileOpen(false)
     mobileTriggerRef.current?.focus()
-  }
+  }, [])
 
   useEffect(() => {
     if (!mobileOpen) return
 
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMobileMenu()
+      if (event.key === 'Escape') {
+        closeMobileMenu()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const menu = mobileMenuRef.current
+      if (!menu) return
+      const focusable = menu.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
 
     document.addEventListener('keydown', handleKeyDown)
+    closeButtonRef.current?.focus()
+
     return () => {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [mobileOpen])
+  }, [mobileOpen, closeMobileMenu])
 
   useEffect(() => {
     setMobileOpen(false)
@@ -100,15 +124,15 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
       {mobileOpen && (
         <>
           <button type="button" aria-label="Cerrar menú administrativo" onClick={closeMobileMenu} className="md:hidden" style={{ position: 'fixed', inset: 0, zIndex: 130, border: 'none', backgroundColor: 'rgba(0,0,0,0.45)', cursor: 'pointer' }} />
-          <aside id="admin-mobile-menu" aria-label="Navegación administrativa" className="md:hidden" style={{ position: 'fixed', inset: '0 auto 0 0', zIndex: 140, width: 'min(82vw, 300px)', backgroundColor: '#006400', display: 'flex', flexDirection: 'column', boxShadow: '8px 0 24px rgba(0,0,0,0.22)', overflowY: 'auto' }}>
+          <aside ref={mobileMenuRef} id="admin-mobile-menu" role="dialog" aria-label="Navegación administrativa" aria-modal="true" className="md:hidden" style={{ position: 'fixed', inset: '0 auto 0 0', zIndex: 140, width: 'min(82vw, 300px)', backgroundColor: '#006400', display: 'flex', flexDirection: 'column', boxShadow: '8px 0 24px rgba(0,0,0,0.22)', overflowY: 'auto' }}>
             <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <GraduationCap size={20} color="#FFFFFF" />
                 <span style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '13px' }}>Admin Panel</span>
               </div>
-              <button type="button" aria-label="Cerrar menú administrativo" onClick={closeMobileMenu} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '7px', backgroundColor: 'rgba(255,255,255,0.12)', color: '#FFFFFF', cursor: 'pointer' }}><X size={18} /></button>
+              <button ref={closeButtonRef} type="button" aria-label="Cerrar menú administrativo" onClick={closeMobileMenu} style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '7px', backgroundColor: 'rgba(255,255,255,0.12)', color: '#FFFFFF', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <nav style={{ padding: '16px 12px', flex: 1 }}>{renderNavigation(true)}</nav>
+            <nav aria-label="Secciones administrativas" style={{ padding: '16px 12px', flex: 1 }}>{renderNavigation(true)}</nav>
             <div style={{ padding: '14px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600, padding: '10px 12px' }}>{user.name}</div>
               <button type="button" onClick={() => { onLogout(); closeMobileMenu() }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', borderRadius: '8px', backgroundColor: 'rgba(220,38,38,0.12)', color: 'rgba(248,113,113,0.9)', border: 'none', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}><LogOut size={14} /> Cerrar Sesión</button>
@@ -130,9 +154,9 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         </div>
       </div>
 
-      <div style={{ padding: '16px 12px', flex: 1 }}>
+      <nav aria-label="Secciones administrativas" style={{ padding: '16px 12px', flex: 1 }}>
         {renderNavigation()}
-      </div>
+      </nav>
 
       <div style={{ padding: '14px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', marginBottom: '6px' }}>
@@ -146,6 +170,7 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         </div>
         <button
           onClick={onLogout}
+          aria-label="Cerrar sesión de administrador"
           style={{
             width: '100%',
             display: 'flex',

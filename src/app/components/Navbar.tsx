@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import { Menu, X, GraduationCap } from 'lucide-react'
 import * as schoolInfoService from '../../services/schoolInfo.service'
@@ -15,6 +15,8 @@ const NAV_LINKS = [
 ]
 
 const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
+const MOBILE_MENU_ID = 'navbar-mobile-menu'
+const MOBILE_TRIGGER_ID = 'navbar-mobile-trigger'
 
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -22,6 +24,8 @@ export function Navbar() {
   const [schoolInfo, setSchoolInfo] = useState<schoolInfoService.SchoolInfo | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const firstLinkRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -34,8 +38,38 @@ export function Navbar() {
     return () => { cancelled = true }
   }, [])
 
-  const handleNavClick = (to: string, isHash?: boolean) => {
+  const closeMenu = useCallback(() => {
     setMenuOpen(false)
+    triggerRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenu()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    firstLinkRef.current?.focus()
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [menuOpen, closeMenu])
+
+  useEffect(() => {
+    if (menuOpen) closeMenu()
+  }, [location.pathname, menuOpen, closeMenu])
+
+  const handleNavClick = (to: string, isHash?: boolean) => {
+    closeMenu()
     if (isHash) {
       const hash = to.replace('/#', '')
       if (location.pathname !== '/') {
@@ -65,7 +99,7 @@ export function Navbar() {
       backgroundColor: '#006400',
       boxShadow: '0 2px 20px rgba(0,0,0,0.18)',
     }}>
-      <nav style={{
+      <nav aria-label="Navegación principal" style={{
         maxWidth: '1280px',
         margin: '0 auto',
         padding: '0 24px',
@@ -74,7 +108,7 @@ export function Navbar() {
         justifyContent: 'space-between',
         height: '70px',
       }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', flexShrink: 0 }}>
+        <Link to="/" aria-label="Ir al inicio" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', flexShrink: 0 }}>
           {schoolInfo?.logo_url ? (
             <ResilientImage
               src={schoolInfo.logo_url}
@@ -108,13 +142,14 @@ export function Navbar() {
           </div>
         </Link>
 
-        <div className="hidden md:flex" style={{ alignItems: 'center', gap: '4px' }}>
+        <div className="hidden md:flex" role="navigation" aria-label="Menú de secciones" style={{ alignItems: 'center', gap: '4px' }}>
           {NAV_LINKS.map(link => {
             const active = isActive(link.to, link.isHash)
             return (
               <button
                 key={link.to}
                 onClick={() => handleNavClick(link.to, link.isHash)}
+                aria-current={active ? 'page' : undefined}
                 style={{
                   background: active ? 'rgba(255,255,255,0.18)' : 'none',
                   border: 'none',
@@ -147,7 +182,7 @@ export function Navbar() {
             )
           })}
 
-          <div style={{ width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 8px' }} />
+          <div aria-hidden="true" style={{ width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 8px' }} />
 
           <button
             onClick={() => navigate('/admin')}
@@ -180,8 +215,12 @@ export function Navbar() {
         </div>
 
         <button
-          className="md:hidden"
-          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+          ref={triggerRef}
+          id={MOBILE_TRIGGER_ID}
+          className="md-hidden"
+          aria-label={menuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'}
+          aria-expanded={menuOpen}
+          aria-controls={MOBILE_MENU_ID}
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
             background: 'none',
@@ -200,7 +239,11 @@ export function Navbar() {
 
       {menuOpen && (
         <div
-          className="md:hidden"
+          id={MOBILE_MENU_ID}
+          role="dialog"
+          aria-label="Menú de navegación móvil"
+          aria-modal="true"
+          className="md-hidden"
           style={{
             backgroundColor: '#004d00',
             borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -208,9 +251,10 @@ export function Navbar() {
             animation: 'fadeInDown 200ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          {NAV_LINKS.map(link => (
+          {NAV_LINKS.map((link, idx) => (
             <button
               key={link.to}
+              ref={idx === 0 ? firstLinkRef : undefined}
               onClick={() => handleNavClick(link.to, link.isHash)}
               style={{
                 display: 'block',
@@ -234,7 +278,7 @@ export function Navbar() {
           ))}
           <div style={{ padding: '12px 24px 0' }}>
             <button
-              onClick={() => { navigate('/admin'); setMenuOpen(false) }}
+              onClick={() => { navigate('/admin'); closeMenu() }}
               style={{
                 width: '100%',
                 border: '1px solid rgba(255,255,255,0.35)',

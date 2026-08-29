@@ -24,16 +24,19 @@ const GalleryPage = lazy(() => import('./components/GalleryPage').then(m => ({ d
 
 function LoadingFallback() {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', color: '#5A7A5A' }}>
-      Cargando...
+    <div role="status" aria-live="polite" aria-label="Cargando contenido" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', color: '#5A7A5A' }}>
+      <span>Cargando...</span>
     </div>
   )
 }
 
 function AdminAccessDenied() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#5A7A5A', padding: '24px', textAlign: 'center' }}>
-      <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+    <div role="alert" aria-live="assertive" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: '#5A7A5A', padding: '24px', textAlign: 'center' }}>
+      <div aria-hidden="true" style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+      <p style={{ fontSize: '13px', fontWeight: 600, color: '#DC2626', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
+        Acceso restringido
+      </p>
       <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#1A1A1A', marginBottom: '8px' }}>Acceso denegado</h1>
       <p style={{ fontSize: '14px', maxWidth: '400px', lineHeight: 1.6 }}>
         No tienes permisos para acceder al panel administrativo. Si crees que esto es un error, contacta al administrador del sistema.
