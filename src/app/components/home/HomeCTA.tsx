@@ -15,7 +15,7 @@ export const HomeCTA = memo(function HomeCTA({ onContact, onViewEvents }: HomeCT
           ¿Listo para unirte a nuestra<br />familia educativa?
         </h2>
         <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '17px', lineHeight: 1.78, marginBottom: '40px' }}>
-          Las inscripciones para el año escolar 2027 estarán abiertas en octubre de 2026. Contáctanos para más información sobre el proceso de matrícula.
+          Contáctanos para conocer más sobre nuestra comunidad educativa y proceso de admisión.
         </p>
         <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button

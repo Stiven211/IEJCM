@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { BookOpen, Users, Award, TrendingUp, ArrowRight } from 'lucide-react'
+import { BookOpen, Award, ArrowRight } from 'lucide-react'
 import type { SchoolInfo } from '../../../services/schoolInfo.service'
 import { ResilientImage } from '../ui/ResilientImage'
 
@@ -12,7 +12,7 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
   const history = schoolInfo?.history || ''
   const mission = schoolInfo?.mission || ''
   const vision = schoolInfo?.vision || ''
-  const aboutText = history || 'Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.'
+  const hasContent = history || mission || vision
 
   return (
     <section id="sobre-nosotros" className="fade-in-up" style={{ padding: 'clamp(64px, 9vw, 108px) 24px', backgroundColor: '#FFFFFF', animationDelay: '100ms' }}>
@@ -26,27 +26,26 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
             <span style={{ color: '#006400' }}>de la Amazonía</span>
           </h2>
           <p style={{ color: '#4A5E4A', lineHeight: 1.85, marginBottom: '18px', fontSize: '16px' }}>
-            {history ? history.split('\n').slice(0, 2).join('\n') : aboutText}
+            {history ? history.split('\n').slice(0, 2).join('\n') : ''}
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {(mission || vision ? [
-              { icon: BookOpen, text: mission ? `Misión: ${mission.split('\n')[0]}` : '' },
-              { icon: Award, text: vision ? `Visión: ${vision.split('\n')[0]}` : '' },
-            ].filter(Boolean) : [
-              { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
-              { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
-              { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
-              { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
-            ]).map(({ icon: Icon, text }) => (
-              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={17} style={{ color: '#006400' }} />
+          {hasContent ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {(mission || vision ? [
+                { icon: BookOpen, text: mission ? `Misión: ${mission.split('\n')[0]}` : '' },
+                { icon: Award, text: vision ? `Visión: ${vision.split('\n')[0]}` : '' },
+              ].filter(Boolean) : []).map(({ icon: Icon, text }) => (
+                <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <Icon size={17} style={{ color: '#006400' }} />
+                  </div>
+                  <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
                 </div>
-                <span style={{ color: '#3A4E3A', fontSize: '14px', lineHeight: 1.5 }}>{text}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: '#5A7A5A', fontSize: '14px' }}>Información no disponible.</div>
+          )}
 
           {onLearnMore && (
             <button

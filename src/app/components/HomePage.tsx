@@ -48,7 +48,7 @@ export function HomePage() {
   const heroTitle = schoolInfo?.hero_title || ''
   const heroSubtitle = schoolInfo?.hero_subtitle || ''
   const history = schoolInfo?.history || ''
-  const aboutText = history || 'Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.'
+  const aboutText = history
   const heroBadge = schoolInfo?.hero_badge || 'Año Escolar 2026 — Inscripciones Abiertas'
   const heroBadgeColor = schoolInfo?.hero_badge_color || '#991B1B'
 

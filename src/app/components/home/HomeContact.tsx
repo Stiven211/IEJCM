@@ -16,7 +16,7 @@ interface HomeContactProps {
 }
 
 export const HomeContact = memo(function HomeContact({ schoolInfo, form, sent, submitting, submitError, onFormChange, onSubmit }: HomeContactProps) {
-  const address = schoolInfo?.address || 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia'
+  const address = schoolInfo?.address || ''
   const phone = schoolInfo?.phone || ''
   const email = schoolInfo?.email || ''
   const facebook = schoolInfo?.facebook || ''
@@ -40,9 +40,9 @@ export const HomeContact = memo(function HomeContact({ schoolInfo, form, sent, s
             <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#1A1A1A', marginBottom: '28px' }}>Información de Contacto</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '32px' }}>
               {[
-                { Icon: MapPin, title: 'Dirección', content: address },
-                { Icon: Phone, title: 'Teléfonos', content: phone || 'Próximamente' },
-                { Icon: Mail, title: 'Correo Electrónico', content: email || 'Próximamente' },
+                 { Icon: MapPin, title: 'Dirección', content: address || 'No disponible' },
+                 { Icon: Phone, title: 'Teléfonos', content: phone || 'No disponible' },
+                 { Icon: Mail, title: 'Correo Electrónico', content: email || 'No disponible' },
                 ...(facebook ? [{ Icon: Facebook, title: 'Facebook', content: facebook }] : []),
                 ...(instagram ? [{ Icon: Instagram, title: 'Instagram', content: instagram }] : []),
                 ...(youtube ? [{ Icon: TikTokIcon, title: 'TikTok', content: youtube }] : []),

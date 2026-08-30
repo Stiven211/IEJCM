@@ -19,7 +19,7 @@ export function Footer() {
   }, [])
 
   const schoolName = info?.school_name || 'Colegio José Celestino Mutis'
-  const address = info?.address || 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia'
+  const address = info?.address || ''
   const phone = info?.phone || ''
   const email = info?.email || ''
   const facebook = info?.facebook || ''
@@ -63,9 +63,9 @@ export function Footer() {
                 <div style={{ fontWeight: 700, fontSize: '13px', lineHeight: 1.3 }}>{schoolName}</div>
                 <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>San José del Guaviare</div>
               </div>
-            </div>
+              </div>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '14px', lineHeight: 1.85, marginBottom: '24px' }}>
-              Formando ciudadanos íntegros y comprometidos con el desarrollo de San José del Guaviare desde 1978.
+              {info?.history ? info.history.split('\n')[0] : ''}
             </p>
              <div style={{ display: 'flex', gap: '10px' }}>
                {socials.map(({ Icon, href }, i) => (

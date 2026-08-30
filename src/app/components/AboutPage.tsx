@@ -40,7 +40,7 @@ export function AboutPage() {
             Sobre Nosotros
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '16px', margin: 0, maxWidth: '540px', lineHeight: 1.7 }}>
-            Conoce nuestra historia, misión y visión. Formando el talento de la Amazonía desde 1978.
+            Conoce la historia, misión y visión de nuestra institución.
           </p>
         </div>
       </div>

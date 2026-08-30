@@ -62,9 +62,11 @@ export const HomeHero = memo(function HomeHero({
           el Futuro
         </h1>
 
+         {description && (
         <p className="fade-in-up" style={{ fontSize: 'clamp(15px, 1.8vw, 19px)', color: 'rgba(255,255,255,0.72)', maxWidth: '560px', marginBottom: '44px', lineHeight: 1.78, animationDelay: '240ms' }}>
           {description}
         </p>
+         )}
 
         <div className="fade-in-up" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', animationDelay: '300ms' }}>
           <button
