@@ -75,7 +75,7 @@ export function ContactMessagesAdminPage({ onLogout, adminUser }: ContactMessage
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },

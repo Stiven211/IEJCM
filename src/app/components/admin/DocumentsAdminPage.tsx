@@ -29,6 +29,7 @@ interface FormData {
   is_public: boolean
   published_at: string
   expires_at: string
+  file?: File
 }
 
 const EMPTY_FORM: FormData = {
@@ -43,6 +44,7 @@ const EMPTY_FORM: FormData = {
   is_public: false,
   published_at: '',
   expires_at: '',
+  file: undefined,
 }
 
 const CATEGORY_OPTIONS = [
@@ -64,7 +66,6 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
   const [editingItem, setEditingItem] = useState<documentService.Document | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -107,6 +108,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       is_public: item.is_public || false,
       published_at: item.published_at || '',
       expires_at: item.expires_at || '',
+      file: undefined,
     })
     setModalMode('edit')
   }
@@ -114,23 +116,14 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
-    try {
-      const url = await documentService.uploadDocument(file)
-      setFormData(prev => ({
-        ...prev,
-        file_path: url,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        file_extension: file.name.split('.').pop()?.toLowerCase() || '',
-      }))
-    } catch (err) {
-      logError(err, { action: 'uploadDocument' })
-      showError('No se pudo subir el documento. Intente de nuevo.')
-    } finally {
-      setUploading(false)
-    }
+    setFormData(prev => ({
+      ...prev,
+      file,
+      file_name: file.name,
+      file_size: file.size,
+      mime_type: file.type,
+      file_extension: file.name.split('.').pop()?.toLowerCase() || '',
+    }))
   }
 
   const handleDownload = async (item: documentService.Document) => {
@@ -157,7 +150,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
     setSaving(true)
     try {
       if (modalMode === 'create') {
-        if (!formData.file_path) {
+        if (!formData.file) {
           showError('Debe seleccionar un archivo.')
           setSaving(false)
           return
@@ -167,7 +160,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
             title: formData.title,
             description: formData.description,
             category: formData.category,
-            file_path: formData.file_path,
+            file_path: '', // Will be set by service after upload
             file_name: formData.file_name,
             file_size: formData.file_size,
             mime_type: formData.mime_type,
@@ -176,7 +169,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
             published_at: formData.published_at || undefined,
             expires_at: formData.expires_at || undefined,
           },
-          { name: formData.file_name, type: formData.mime_type } as File
+          formData.file
         )
         showSuccess('Documento creado exitosamente.')
       } else if (modalMode === 'edit' && editingItem) {
@@ -236,7 +229,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
@@ -306,7 +299,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       <AdminModal
         open={!!modalMode}
         title={modalMode === 'create' ? 'Nuevo Documento' : 'Editar Documento'}
-        onClose={() => setModalMode(null)}
+        onClose={() => { setModalMode(null); setFormData(EMPTY_FORM) }}
         onSave={handleSave}
         saveLabel={modalMode === 'create' ? 'Crear' : 'Guardar Cambios'}
         cancelLabel="Cancelar"
@@ -343,10 +336,9 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
           >
-            <Upload size={16} /> {uploading ? 'Subiendo...' : formData.file_name ? 'Cambiar archivo' : 'Seleccionar archivo'}
+            <Upload size={16} /> {formData.file_name ? 'Cambiar archivo' : 'Seleccionar archivo'}
           </button>
           {formData.file_path && (
             <div style={{ marginTop: '12px', padding: '12px', borderRadius: '8px', backgroundColor: '#E8F5E9', color: '#006400', fontSize: '13px' }}>

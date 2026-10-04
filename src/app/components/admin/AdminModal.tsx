@@ -26,7 +26,7 @@ export function AdminModal({
 
   return (
     <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px', backdropFilter: 'blur(4px)' }}>
-      <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+      <div role="dialog" aria-modal="true" aria-label={title} style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '700px', maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
         <div style={{ padding: '22px 28px', borderBottom: '1px solid rgba(0,0,0,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, backgroundColor: '#FFFFFF', zIndex: 1 }}>
           <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1A1A1A', margin: 0, letterSpacing: '-0.01em' }}>{title}</h2>
           <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '7px', border: 'none', backgroundColor: '#F0F4F0', cursor: 'pointer', color: '#5A7A5A' }}>

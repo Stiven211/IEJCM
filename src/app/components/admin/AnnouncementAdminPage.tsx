@@ -93,23 +93,23 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
          await announcementService.createAnnouncement({
            title: formData.title,
            description: formData.description,
-           type: formData.type || undefined,
-           priority: formData.priority || undefined,
+           type: formData.type || 'general',
+           priority: formData.priority || 'media',
            active: formData.active,
            start_date: formData.start_date || undefined,
            end_date: formData.end_date || undefined,
          })
-        showSuccess('Aviso creado exitosamente.')
+         showSuccess('Aviso creado exitosamente.')
       } else if (modalMode === 'edit' && editingItem) {
-         await announcementService.updateAnnouncement(editingItem.id, {
-           title: formData.title,
-           description: formData.description,
-           type: formData.type || undefined,
-           priority: formData.priority || undefined,
-           active: formData.active,
-           start_date: formData.start_date || undefined,
-           end_date: formData.end_date || undefined,
-         })
+          await announcementService.updateAnnouncement(editingItem.id, {
+            title: formData.title,
+            description: formData.description,
+            type: formData.type || 'general',
+            priority: formData.priority || 'media',
+            active: formData.active,
+            start_date: formData.start_date || undefined,
+            end_date: formData.end_date || undefined,
+          })
         showSuccess('Aviso actualizado exitosamente.')
       }
       setModalMode(null)
@@ -143,7 +143,7 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },

@@ -107,6 +107,9 @@ export const HomeHero = memo(function HomeHero({
          <HeroSkeleton
            badge={heroBadge}
            badgeColor={heroBadgeColor}
+           title={heroTitle || 'Educando para'}
+           subtitle={heroSubtitle || 'Transformar'}
+           description={description}
            visible={showOverlay}
          />
       )}

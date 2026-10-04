@@ -60,7 +60,7 @@ export function AdminOverview({ eventsCount }: AdminOverviewProps) {
   useEffect(() => { loadOverview() }, [loadOverview])
 
   const cards: OverviewCard[] = [
-    { key: 'events', label: 'Eventos', description: 'Total administrativo', to: '/admin', icon: CalendarDays, state: { status: 'success', value: String(eventsCount) } },
+    { key: 'events', label: 'Eventos', description: 'Total administrativo', to: '/admin/events', icon: CalendarDays, state: { status: 'success', value: String(eventsCount) } },
     { key: 'gallery', label: 'Galería', description: 'Total administrativo', to: '/admin/gallery', icon: Image, state: overview.gallery },
     { key: 'announcements', label: 'Avisos', description: 'Total administrativo', to: '/admin/announcements', icon: Megaphone, state: overview.announcements },
     { key: 'documents', label: 'Documentos', description: 'Total administrativo', to: '/admin/documents', icon: FileText, state: overview.documents },

@@ -10,8 +10,6 @@ interface HomeAnnouncementsProps {
 }
 
 export const HomeAnnouncements = memo(function HomeAnnouncements({ announcements, onViewAll }: HomeAnnouncementsProps) {
-  if (announcements.length === 0) return null
-
   return (
     <section id="avisos" className="fade-in-up" style={{ padding: 'clamp(48px, 7vw, 80px) 24px', backgroundColor: '#FFFFFF', animationDelay: '50ms' }}>
       <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
@@ -36,8 +34,9 @@ export const HomeAnnouncements = memo(function HomeAnnouncements({ announcements
           </button>
         </div>
 
-        <div className="fade-in-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', animationDelay: '150ms' }}>
-          {announcements.map(ann => (
+        {announcements.length > 0 ? (
+          <div className="fade-in-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', animationDelay: '150ms' }}>
+            {announcements.map(ann => (
             <div key={ann.id} style={{ backgroundColor: '#F8F8F8', border: '1px solid rgba(0,0,0,0.06)', borderRadius: '10px', padding: '20px', transition: TRANSITION }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)' }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = 'none' }}>
               <div style={{ fontSize: '13px', color: '#5A7A5A', marginBottom: '8px' }}>
                 {ann.start_date ? new Date(ann.start_date).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date(ann.created_at || '').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -45,8 +44,13 @@ export const HomeAnnouncements = memo(function HomeAnnouncements({ announcements
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px', lineHeight: 1.35 }}>{ann.title}</h3>
               <p style={{ fontSize: '14px', color: '#4A5E4A', lineHeight: 1.7, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ann.description}</p>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, padding: '24px', border: '1px dashed rgba(153,27,27,0.25)', borderRadius: '10px', color: '#6B7280', backgroundColor: '#FFFAFA' }}>
+            No hay avisos publicados en este momento.
+          </p>
+        )}
       </div>
     </section>
   )

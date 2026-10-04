@@ -4,6 +4,17 @@ import { useLocation, useNavigate } from 'react-router'
 import { GraduationCap, LogOut, Mail, Menu, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return isMobile
+}
+
 export interface AdminSidebarSection {
   label: string
   icon: LucideIcon
@@ -28,7 +39,8 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
   const currentPath = location.pathname
   const navigationSections = [...sections, { label: 'Mensajes', icon: Mail, to: '/admin/contact-messages' }]
   const [mobileOpen, setMobileOpen] = useState(false)
-  const mobileTriggerRef = useRef<HTMLButtonElement>(null)
+  const mobileTriggerRef = useRef<HTMLInputElement>(null)
+  const isMobile = useIsMobile()
 
   const closeMobileMenu = () => {
     setMobileOpen(false)
@@ -84,23 +96,24 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
 
   return (
     <>
-      <button
-        ref={mobileTriggerRef}
-        type="button"
-        aria-label="Abrir menú administrativo"
-        aria-expanded={mobileOpen}
-        aria-controls="admin-mobile-menu"
-        onClick={() => setMobileOpen(true)}
-        className="md:hidden"
-        style={{ position: 'fixed', top: '14px', left: '14px', zIndex: 120, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '8px', backgroundColor: '#006400', color: '#FFFFFF', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }}
-      >
-        <Menu size={20} />
-      </button>
+      {isMobile && (
+        <button
+          ref={mobileTriggerRef}
+          type="button"
+          aria-label="Abrir menú administrativo"
+          aria-expanded={mobileOpen}
+          aria-controls="admin-mobile-menu"
+          onClick={() => setMobileOpen(true)}
+          style={{ position: 'fixed', top: '14px', left: '14px', zIndex: 120, width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '8px', backgroundColor: '#006400', color: '#FFFFFF', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.18)' }}
+        >
+          <Menu size={20} />
+        </button>
+      )}
 
-      {mobileOpen && (
+      {isMobile && mobileOpen && (
         <>
-          <button type="button" aria-label="Cerrar menú administrativo" onClick={closeMobileMenu} className="md:hidden" style={{ position: 'fixed', inset: 0, zIndex: 130, border: 'none', backgroundColor: 'rgba(0,0,0,0.45)', cursor: 'pointer' }} />
-          <aside id="admin-mobile-menu" aria-label="Navegación administrativa" className="md:hidden" style={{ position: 'fixed', inset: '0 auto 0 0', zIndex: 140, width: 'min(82vw, 300px)', backgroundColor: '#006400', display: 'flex', flexDirection: 'column', boxShadow: '8px 0 24px rgba(0,0,0,0.22)', overflowY: 'auto' }}>
+          <button type="button" aria-label="Cerrar menú administrativo" onClick={closeMobileMenu} style={{ position: 'fixed', inset: 0, zIndex: 130, border: 'none', backgroundColor: 'rgba(0,0,0,0.45)', cursor: 'pointer' }} />
+          <aside id="admin-mobile-menu" aria-label="Navegación administrativa" style={{ position: 'fixed', inset: '0 auto 0 0', zIndex: 140, width: 'min(82vw, 300px)', backgroundColor: '#006400', display: 'flex', flexDirection: 'column', boxShadow: '8px 0 24px rgba(0,0,0,0.22)', overflowY: 'auto' }}>
             <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <GraduationCap size={20} color="#FFFFFF" />
@@ -117,7 +130,8 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         </>
       )}
 
-    <div className="hidden md:flex" style={{ width: '240px', backgroundColor: '#006400', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
+      {!isMobile && (
+        <div style={{ width: '240px', backgroundColor: '#006400', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
       <div style={{ padding: '28px 20px 22px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: 38, height: 38, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -130,9 +144,7 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         </div>
       </div>
 
-      <div style={{ padding: '16px 12px', flex: 1 }}>
-        {renderNavigation()}
-      </div>
+      <nav aria-label="Navegación principal del panel" style={{ padding: '16px 12px', flex: 1 }}>{renderNavigation()}</nav>
 
       <div style={{ padding: '14px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', marginBottom: '6px' }}>
@@ -168,6 +180,7 @@ export function AdminSidebar({ sections, user, onLogout }: AdminSidebarProps) {
         </button>
       </div>
     </div>
+      )}
     </>
   )
 }

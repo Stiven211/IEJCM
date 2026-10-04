@@ -1,3 +1,13 @@
+@media (min-width: 900px) {
+  .desktop-nav { display: flex !important; }
+  .mobile-nav-toggle, .mobile-nav-panel { display: none !important; }
+}
+
+@media (max-width: 899px) {
+  .desktop-nav { display: none !important; }
+  .mobile-nav-toggle { display: flex !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

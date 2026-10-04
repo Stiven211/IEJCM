@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import { BookOpen, Users, Award, TrendingUp, ArrowRight } from 'lucide-react'
+import { BookOpen, Award, ArrowRight } from 'lucide-react'
 import type { SchoolInfo } from '../../../services/schoolInfo.service'
 import { ResilientImage } from '../ui/ResilientImage'
 
@@ -12,7 +12,9 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
   const history = schoolInfo?.history || ''
   const mission = schoolInfo?.mission || ''
   const vision = schoolInfo?.vision || ''
-  const aboutText = history || 'Fundado en 1978, el Colegio José Celestino Mutis es una institución educativa de carácter oficial que ha formado a miles de bachilleres en San José del Guaviare, orgullo del departamento del Guaviare.'
+  const foundingYear = 1978
+  const anniversary = Math.max(0, new Date().getFullYear() - foundingYear)
+  const aboutText = history || 'La información institucional estará disponible próximamente.'
 
   return (
     <section id="sobre-nosotros" className="fade-in-up" style={{ padding: 'clamp(64px, 9vw, 108px) 24px', backgroundColor: '#FFFFFF', animationDelay: '100ms' }}>
@@ -33,12 +35,7 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
             {(mission || vision ? [
               { icon: BookOpen, text: mission ? `Misión: ${mission.split('\n')[0]}` : '' },
               { icon: Award, text: vision ? `Visión: ${vision.split('\n')[0]}` : '' },
-            ].filter(Boolean) : [
-              { icon: BookOpen, text: 'Modelo pedagógico constructivista y por competencias' },
-              { icon: Users, text: 'Comunidad educativa activa de más de 3,500 personas' },
-              { icon: Award, text: 'Reconocida por el MEN con ISCE sobresaliente' },
-              { icon: TrendingUp, text: 'Programa PRAE premiado a nivel regional' },
-            ]).map(({ icon: Icon, text }) => (
+            ].filter(item => item.text) : []).map(({ icon: Icon, text }) => (
               <div key={text} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: 36, height: 36, backgroundColor: '#E8F5E9', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={17} style={{ color: '#006400' }} />
@@ -65,7 +62,7 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
         <div style={{ position: 'relative' }}>
           <div style={{ borderRadius: '16px', overflow: 'hidden', backgroundColor: '#E8F5E9' }}>
             <ResilientImage
-              src={schoolInfo?.hero_image_url || 'https://images.unsplash.com/photo-1727518493216-d75fcdb3f2b2?w=800&h=600&fit=crop&auto=format'}
+              src={'/jornoda-de-medio-ambiente.jpg'}
               alt="Estudiantes del Colegio"
               fallbackLabel="Imagen institucional no disponible"
               loading="lazy"
@@ -75,8 +72,8 @@ export const HomeAbout = memo(function HomeAbout({ schoolInfo, onLearnMore }: Ho
             />
           </div>
           <div style={{ position: 'absolute', bottom: -20, left: -20, backgroundColor: '#006400', color: '#FFFFFF', borderRadius: '12px', padding: '16px 22px', boxShadow: '0 10px 32px rgba(0,100,0,0.35)' }}>
-            <div style={{ fontSize: '30px', fontWeight: 800, lineHeight: 1 }}>48°</div>
-            <div style={{ fontSize: '13px', opacity: 0.82, marginTop: '4px' }}>Aniversario 2026</div>
+            <div style={{ fontSize: '30px', fontWeight: 800, lineHeight: 1 }}>{anniversary}°</div>
+            <div style={{ fontSize: '13px', opacity: 0.82, marginTop: '4px' }}>Aniversario {new Date().getFullYear()}</div>
           </div>
         </div>
       </div>

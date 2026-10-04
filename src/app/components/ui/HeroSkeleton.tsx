@@ -3,6 +3,9 @@ import type { CSSProperties } from 'react'
 interface HeroSkeletonProps {
   badge?: string
   badgeColor?: string
+  title?: string
+  subtitle?: string
+  description?: string
   visible?: boolean
   style?: CSSProperties
 }
@@ -12,6 +15,9 @@ const shimmerBackground = `linear-gradient(90deg, rgba(255,255,255,0.10) 25%, rg
 export function HeroSkeleton({
   badge = 'Año Escolar 2026 — Inscripciones Abiertas',
   badgeColor = '#991B1B',
+  title = 'Educando para',
+  subtitle = 'Transformar',
+  description = '',
   visible = true,
   style,
 }: HeroSkeletonProps) {
@@ -78,46 +84,48 @@ export function HeroSkeleton({
           />
         </div>
 
-        <div style={{ marginBottom: '24px' }}>
-          {[0.72, 0.48, 0.62].map((width, index) => (
-            <div
-              key={index}
-              className="sk"
-              style={{
-                height: 'clamp(38px, 6.5vw, 76px)',
-                width: `${Math.round(width * 100)}%`,
-                maxWidth: index === 0 ? '740px' : '100%',
-                borderRadius: 16,
-                marginTop: index === 0 ? 0 : 4,
-                backgroundImage: shimmerBackground,
-                backgroundSize: '200% 100%',
-                animationName: 'shimmer',
-                animationDuration: '2s',
-                animationTimingFunction: 'ease-in-out',
-                animationIterationCount: 'infinite',
-                animationDelay: `${index * 0.12}s`,
-              }}
-            />
-          ))}
-        </div>
-
-        <div
-          className="sk"
+        <h1
+          aria-hidden="true"
           style={{
-            height: 'clamp(15px, 1.8vw, 19px)',
-            width: '72%',
-            maxWidth: '560px',
-            marginBottom: '44px',
-            borderRadius: '999px',
+            fontSize: 'clamp(38px, 6.5vw, 76px)',
+            fontWeight: 800,
+            lineHeight: 1.06,
+            maxWidth: '740px',
+            margin: '0 0 24px',
+            letterSpacing: '-0.025em',
+            color: 'transparent',
             backgroundImage: shimmerBackground,
             backgroundSize: '200% 100%',
-            animationName: 'shimmer',
-            animationDuration: '2s',
-            animationTimingFunction: 'ease-in-out',
-            animationIterationCount: 'infinite',
-            animationDelay: '0.25s',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            animation: 'shimmer 2s ease-in-out infinite',
           }}
-        />
+        >
+          {title}
+          <br />
+          <span>{subtitle}</span>
+          <br />
+          el Futuro
+        </h1>
+
+        <p
+          aria-hidden="true"
+          style={{
+            fontSize: 'clamp(15px, 1.8vw, 19px)',
+            lineHeight: 1.78,
+            maxWidth: '560px',
+            marginBottom: '44px',
+            minHeight: description ? '2em' : 0,
+            color: 'transparent',
+            backgroundImage: shimmerBackground,
+            backgroundSize: '200% 100%',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            animation: 'shimmer 2s ease-in-out infinite 0.25s',
+          }}
+        >
+          {description}
+        </p>
 
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
           <div

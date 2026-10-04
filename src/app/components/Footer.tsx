@@ -95,7 +95,6 @@ export function Footer() {
                 { label: 'Galería', to: '/galeria' },
                 { label: 'Documentos', to: '/documentos' },
                 { label: 'Contacto', to: '/contacto' },
-                { label: 'Acceso Administrativo', to: '/admin' },
               ].map(item => (
                 <li key={item.label}>
                    <Link
