@@ -10,6 +10,7 @@ import { EventDetailPage } from './components/EventDetailPage'
 import { AdminLogin } from './components/AdminLogin'
 import { DocumentsPage } from './components/DocumentsPage'
 import { NotFoundPage } from './components/NotFoundPage'
+import { ScrollToTop } from './components/ScrollToTop'
 import { supabase } from '../lib/supabase'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 
@@ -104,6 +105,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Layout><HomePage /></Layout>} />
         <Route path="/eventos" element={<Layout><EventsPage /></Layout>} />
@@ -120,6 +122,18 @@ export default function App() {
               ? (
                 <ProtectedAdminRoute>
                   <Suspense fallback={<LoadingFallback />}><AdminDashboard onLogout={handleLogout} adminUser={adminUser} /></Suspense>
+                </ProtectedAdminRoute>
+              )
+              : <AdminLogin />
+          }
+        />
+        <Route
+          path="/admin/events"
+          element={
+            user
+              ? (
+                <ProtectedAdminRoute>
+                  <Suspense fallback={<LoadingFallback />}><AdminDashboard onLogout={handleLogout} adminUser={adminUser} eventsOnly /></Suspense>
                 </ProtectedAdminRoute>
               )
               : <AdminLogin />

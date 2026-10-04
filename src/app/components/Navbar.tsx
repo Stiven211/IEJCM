@@ -16,6 +16,62 @@ const NAV_LINKS = [
 
 const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
+/**
+ * La home carga su contenido de forma asincrona (Supabase + rutas lazy), asi que
+ * calcular el offset una sola vez despues de navegar deja al usuario en una
+ * posicion incorrecta: el destino todavia no tiene su altura definitiva.
+ * Solution: alinear el destino y mantenerlo anclado con un ResizeObserver
+ * mientras el documento cambia de altura, y soltar cuando todo esta estable.
+ */
+function scrollToSectionWhenSettled(hash: string, quietMs = 600, maxMs = 4000) {
+  const started = Date.now()
+  let observer: ResizeObserver | null = null
+  let settleTimer: number | undefined
+  let raf = 0
+
+  const align = (behavior: ScrollBehavior) => {
+    const target = document.getElementById(hash)
+    if (target) target.scrollIntoView({ behavior, block: 'start' })
+  }
+
+  const stop = () => {
+    observer?.disconnect()
+    observer = null
+    window.clearTimeout(settleTimer)
+    cancelAnimationFrame(raf)
+  }
+
+  const scheduleStop = () => {
+    window.clearTimeout(settleTimer)
+    settleTimer = window.setTimeout(stop, quietMs)
+  }
+
+  const watch = () => {
+    if (Date.now() - started > maxMs) {
+      stop()
+      return
+    }
+
+    if (!document.getElementById(hash)) {
+      raf = requestAnimationFrame(watch)
+      return
+    }
+
+    if (!observer) {
+      observer = new ResizeObserver(() => {
+        align('smooth')
+        scheduleStop()
+      })
+      observer.observe(document.body)
+    }
+
+    align('smooth')
+    scheduleStop()
+  }
+
+  raf = requestAnimationFrame(watch)
+}
+
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [schoolName, setSchoolName] = useState('Colegio José Celestino Mutis')
@@ -38,13 +94,13 @@ export function Navbar() {
     setMenuOpen(false)
     if (isHash) {
       const hash = to.replace('/#', '')
+      // Al cambiar de ruta, ScrollToTop lleva el scroll a 0; despues hay que
+      // llevar el usuario a la seccion, no dejarlo arriba.
       if (location.pathname !== '/') {
         navigate('/')
-        setTimeout(() => {
-          document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' })
-        }, 100)
+        requestAnimationFrame(() => scrollToSectionWhenSettled(hash))
       } else {
-        document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' })
+        scrollToSectionWhenSettled(hash)
       }
     } else {
       navigate(to)
@@ -108,7 +164,7 @@ export function Navbar() {
           </div>
         </Link>
 
-        <div className="hidden md:flex" style={{ alignItems: 'center', gap: '4px' }}>
+        <div className="desktop-nav" style={{ alignItems: 'center', gap: '4px' }}>
           {NAV_LINKS.map(link => {
             const active = isActive(link.to, link.isHash)
             return (
@@ -147,40 +203,10 @@ export function Navbar() {
             )
           })}
 
-          <div style={{ width: 1, height: 22, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 8px' }} />
-
-          <button
-            onClick={() => navigate('/admin')}
-            style={{
-              border: '1px solid rgba(255,255,255,0.35)',
-              color: 'rgba(255,255,255,0.85)',
-              backgroundColor: 'transparent',
-              padding: '7px 16px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              transition: TRANSITION,
-              fontFamily: 'inherit',
-              letterSpacing: '0.01em',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'rgba(255,255,255,0.12)'
-              ;(e.currentTarget as HTMLButtonElement).style.color = '#FFFFFF'
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.backgroundColor = 'transparent'
-              ;(e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.85)'
-            }}
-            onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.96)'}
-            onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
-          >
-            Acceso Admin
-          </button>
         </div>
 
         <button
-          className="md:hidden"
+          className="mobile-nav-toggle"
           aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
           onClick={() => setMenuOpen(!menuOpen)}
           style={{
@@ -189,7 +215,6 @@ export function Navbar() {
             color: '#FFFFFF',
             cursor: 'pointer',
             padding: '8px',
-            display: 'flex',
             alignItems: 'center',
             transition: TRANSITION,
           }}
@@ -200,7 +225,7 @@ export function Navbar() {
 
       {menuOpen && (
         <div
-          className="md:hidden"
+          className="mobile-nav-panel"
           style={{
             backgroundColor: '#004d00',
             borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -232,27 +257,6 @@ export function Navbar() {
               {link.label}
             </button>
           ))}
-          <div style={{ padding: '12px 24px 0' }}>
-            <button
-              onClick={() => { navigate('/admin'); setMenuOpen(false) }}
-              style={{
-                width: '100%',
-                border: '1px solid rgba(255,255,255,0.35)',
-                color: '#FFFFFF',
-                backgroundColor: 'transparent',
-                padding: '11px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                transition: TRANSITION,
-              }}
-              onMouseDown={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)'}
-              onMouseUp={e => (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'}
-            >
-              Acceso Admin
-            </button>
-          </div>
         </div>
       )}
     </header>

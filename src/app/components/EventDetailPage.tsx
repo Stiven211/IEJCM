@@ -183,7 +183,7 @@ export function EventDetailPage() {
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
               {relatedEvents.map(e => (
-                <EventCard key={e.id} event={e} onClick={() => { navigate(`/eventos/${e.id}`); window.scrollTo(0, 0) }} />
+                <EventCard key={e.id} event={e} onClick={() => navigate(`/eventos/${e.id}`)} />
               ))}
             </div>
           </div>
