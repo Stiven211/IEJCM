@@ -57,7 +57,7 @@ No fue posible ejecutar ESLint porque faltan el script `lint` y el binario local
 No se ejecutó SQL ni se modificó Supabase. No se cambiaron:
 
 - tablas, policies, buckets, Storage, Auth o RLS;
-- `src/lib/database.sql`;
+- `supabase/schema.sql`;
 - el comportamiento funcional de documentos S6-008, signed URLs o su flujo de Storage;
 - formulario de contacto;
 - skeletons, hero, estados de carga, accesibilidad, responsive o dashboard;

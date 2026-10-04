@@ -81,7 +81,7 @@ No fue posible hacer una prueba visual interactiva en navegador en esta sesión 
 No se modificaron:
 
 - Supabase, SQL, tablas, policies, buckets, Storage, Auth, RLS o migraciones.
-- `src/services/` ni `src/lib/database.sql`.
+- `src/services/` ni `supabase/schema.sql`.
 - La lógica funcional de S6-008: privacidad, signed URLs, expiración, categorías, búsqueda y descarga de documentos permanecen igual.
 - Formulario de contacto: `HomeContact` y su comportamiento de confirmación local no fueron modificados.
 - Hero, fallbacks de imágenes, `onError` de imágenes ni filtrado de avisos por fechas.
