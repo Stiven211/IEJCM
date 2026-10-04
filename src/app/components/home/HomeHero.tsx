@@ -44,9 +44,17 @@ export const HomeHero = memo(function HomeHero({
         fallbackLabel="Imagen principal no disponible"
         decoding="async"
         fetchPriority="high"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.32 }}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
       />
-      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(140deg, rgba(0,30,0,0.96) 0%, rgba(0,80,0,0.72) 55%, rgba(0,40,0,0.88) 100%)' }} />
+      {/* Dos velos superpuestos, no uno opaco.
+          Antes: imagen en opacity 0.32 + gradiente de 0.72-0.96 => la foto
+          quedaba al 3-9% de visibilidad y el hero se veía como un verde solido.
+          Ahora la foto se ve y el texto sigue teniendo contraste:
+            - capa vertical: baja el brillo del cielo (arriba es casi blanco)
+            - capa horizontal: fuerte a la izquierda, donde vive el texto,
+              y se abre a la derecha para que se vea la foto
+          0.82 + 0.55 en la esquina superior izquierda = ~0.92 de opacidad. */}
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,26,0,0.58) 0%, rgba(0,26,0,0.30) 32%, rgba(0,26,0,0.62) 100%), linear-gradient(100deg, rgba(0,24,0,0.88) 0%, rgba(0,24,0,0.74) 38%, rgba(0,24,0,0.40) 70%, rgba(0,24,0,0.20) 100%)' }} />
 
       <div style={{ position: 'relative', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(80px,10vw,120px) 24px clamp(60px,8vw,80px)', color: '#FFFFFF', opacity: heroLoaded ? 1 : 0, transition: 'opacity 0.5s ease' }}>
         <div className="fade-in-up" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '24px', padding: '8px 18px', marginBottom: '28px', backdropFilter: 'blur(6px)', animationDelay: '100ms' }}>
@@ -54,7 +62,7 @@ export const HomeHero = memo(function HomeHero({
           <span style={{ fontSize: '13px', letterSpacing: '0.04em', color: '#FFFFFF' }}>{heroBadge}</span>
         </div>
 
-        <h1 className="fade-in-up" style={{ fontSize: 'clamp(38px, 6.5vw, 76px)', fontWeight: 800, lineHeight: 1.06, maxWidth: '740px', marginBottom: '24px', letterSpacing: '-0.025em', animationDelay: '180ms' }}>
+        <h1 className="fade-in-up" style={{ fontSize: 'clamp(38px, 6.5vw, 76px)', fontWeight: 800, lineHeight: 1.06, maxWidth: '740px', marginBottom: '24px', letterSpacing: '-0.025em', animationDelay: '180ms', textShadow: '0 2px 18px rgba(0,20,0,0.55), 0 1px 3px rgba(0,20,0,0.4)' }}>
           {heroTitle || 'Educando para'}
           <br />
           <span style={{ color: '#86EFAC' }}>{heroSubtitle || 'Transformar'}</span>
@@ -62,7 +70,7 @@ export const HomeHero = memo(function HomeHero({
           el Futuro
         </h1>
 
-        <p className="fade-in-up" style={{ fontSize: 'clamp(15px, 1.8vw, 19px)', color: 'rgba(255,255,255,0.72)', maxWidth: '560px', marginBottom: '44px', lineHeight: 1.78, animationDelay: '240ms' }}>
+        <p className="fade-in-up" style={{ fontSize: 'clamp(15px, 1.8vw, 19px)', color: 'rgba(255,255,255,0.88)', maxWidth: '560px', marginBottom: '44px', lineHeight: 1.78, animationDelay: '240ms' }}>
           {description}
         </p>
 
