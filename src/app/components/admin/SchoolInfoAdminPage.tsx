@@ -8,6 +8,7 @@ import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import * as schoolInfoService from '../../../services/schoolInfo.service'
 import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-helpers'
 import { logError } from '../../../lib/logger'
+import { validateImageFile, toStoragePath, deleteFromStorage, resolveAssetUrl } from '../../../lib/storage'
 import { ResilientImage } from '../ui/ResilientImage'
 
 
@@ -61,15 +62,20 @@ const BADGE_STATES = {
 
 type BadgeState = 'abierto' | 'cerrado'
 
+type MediaField = 'logo_url' | 'hero_image_url'
+
+const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+
 export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPageProps) {
   const navigate = useNavigate()
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [uploadingHero, setUploadingHero] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<Partial<Record<MediaField, File>>>({})
+  const [previews, setPreviews] = useState<Partial<Record<MediaField, string>>>({})
   const logoInputRef = useRef<HTMLInputElement>(null)
   const heroInputRef = useRef<HTMLInputElement>(null)
+  const previewUrlsRef = useRef<string[]>([])
 
   const { successMsg, errorMsg, showSuccess, showError } = useAdminStatus()
 
@@ -112,11 +118,41 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
   const handleSave = async () => {
     setSaving(true)
     try {
-      await schoolInfoService.upsertSchoolInfo(formData)
+      const original = formData
+
+      const next = { ...formData }
+
+      for (const field of ['logo_url', 'hero_image_url'] as MediaField[]) {
+        const file = pendingFiles[field]
+        if (file) {
+          const uploadedPath = await schoolInfoService.uploadSchoolInfoMedia(file)
+          next[field] = resolveAssetUrl('school-info', uploadedPath)
+        }
+      }
+
+      await schoolInfoService.upsertSchoolInfo(next)
+
+      // el form debe reflejar lo que quedo persistido: si no, tras guardar
+      // la vista previa sigue mostrando el archivo anterior.
+      setFormData(next)
+
+      for (const field of ['logo_url', 'hero_image_url'] as MediaField[]) {
+        const previous = toStoragePath('school-info', original[field])
+        const current = toStoragePath('school-info', next[field])
+        if (pendingFiles[field] && previous && previous !== current) {
+          try {
+            await deleteFromStorage('school-info', previous)
+          } catch (storageError) {
+            logError(storageError, { action: 'cleanupReplacedSchoolInfoMedia', field, path: previous })
+          }
+        }
+      }
+
+      clearPendingMedia()
       showSuccess('Información institucional actualizada exitosamente.')
     } catch (err) {
       logError(err, { action: 'saveSchoolInfo' })
-      showError('No se pudo guardar la información. Intente de nuevo.')
+      showError(err instanceof Error ? err.message : 'No se pudo guardar la información. Intente de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -126,34 +162,44 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
     setFormData(prev => ({ ...prev, [key]: value }))
   }
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingLogo(true)
-    try {
-      const url = await schoolInfoService.uploadSchoolInfoMedia(file)
-      setFormData(prev => ({ ...prev, logo_url: url }))
-    } catch (err) {
-      logError(err, { action: 'uploadSchoolLogo' })
-      showError('No se pudo subir el logo. Intente de nuevo.')
-    } finally {
-      setUploadingLogo(false)
+  useEffect(() => {
+    return () => {
+      for (const url of previewUrlsRef.current) URL.revokeObjectURL(url)
     }
+  }, [])
+
+  const clearPendingMedia = () => {
+    for (const url of previewUrlsRef.current) URL.revokeObjectURL(url)
+    previewUrlsRef.current = []
+    setPendingFiles({})
+    setPreviews({})
+    if (logoInputRef.current) logoInputRef.current.value = ''
+    if (heroInputRef.current) heroInputRef.current.value = ''
   }
 
-  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleMediaSelect = (field: MediaField) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
-    setUploadingHero(true)
+
     try {
-      const url = await schoolInfoService.uploadSchoolInfoMedia(file)
-      setFormData(prev => ({ ...prev, hero_image_url: url }))
+      validateImageFile(file)
     } catch (err) {
-      logError(err, { action: 'uploadSchoolHeroImage' })
-      showError('No se pudo subir la imagen principal. Intente de nuevo.')
-    } finally {
-      setUploadingHero(false)
+      logError(err, { action: 'validateSchoolInfoMedia', field })
+      showError(err instanceof Error ? err.message : 'Archivo no permitido.')
+      input.value = ''
+      return
     }
+
+    const previousPreview = previews[field]
+    if (previousPreview) URL.revokeObjectURL(previousPreview)
+
+    const objectUrl = URL.createObjectURL(file)
+    previewUrlsRef.current = previewUrlsRef.current.filter(u => u !== previousPreview)
+    previewUrlsRef.current.push(objectUrl)
+
+    setPendingFiles(prev => ({ ...prev, [field]: file }))
+    setPreviews(prev => ({ ...prev, [field]: objectUrl }))
   }
 
   if (loading) {
@@ -162,7 +208,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
         <AdminSidebar
           sections={[
             { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-            { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+            { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
             { label: 'Galería', icon: Image, to: '/admin/gallery' },
             { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
             { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
@@ -181,7 +227,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
@@ -311,35 +357,33 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Logo</label>
-                  <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+                  <input ref={logoInputRef} type="file" accept={IMAGE_INPUT_ACCEPT} onChange={handleMediaSelect('logo_url')} style={{ display: 'none' }} />
                   <button
                     type="button"
                     onClick={() => logoInputRef.current?.click()}
-                    disabled={uploadingLogo}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
                   >
-                    <Upload size={16} /> {uploadingLogo ? 'Subiendo logo...' : formData.logo_url ? 'Cambiar logo' : 'Seleccionar logo'}
+                    <Upload size={16} /> {formData.logo_url ? 'Cambiar logo' : 'Seleccionar logo'}
                   </button>
-                  {formData.logo_url && (
+                  {(previews.logo_url || formData.logo_url) && (
                     <div style={{ marginTop: '8px', width: 80, height: 80, borderRadius: '8px', overflow: 'hidden', backgroundColor: '#E8F5E9' }}>
-                       <ResilientImage src={formData.logo_url} alt="Logo preview" fallbackLabel="Logo no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                       <ResilientImage src={previews.logo_url || formData.logo_url} alt="Logo preview" fallbackLabel="Logo no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                   )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen principal (Hero)</label>
-                  <input ref={heroInputRef} type="file" accept="image/*" onChange={handleHeroUpload} style={{ display: 'none' }} />
+                  <input ref={heroInputRef} type="file" accept={IMAGE_INPUT_ACCEPT} onChange={handleMediaSelect('hero_image_url')} style={{ display: 'none' }} />
                   <button
                     type="button"
                     onClick={() => heroInputRef.current?.click()}
-                    disabled={uploadingHero}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
                   >
-                    <Upload size={16} /> {uploadingHero ? 'Subiendo imagen...' : formData.hero_image_url ? 'Cambiar imagen principal' : 'Seleccionar imagen principal'}
+                    <Upload size={16} /> {formData.hero_image_url ? 'Cambiar imagen principal' : 'Seleccionar imagen principal'}
                   </button>
-                  {formData.hero_image_url && (
+                  {(previews.hero_image_url || formData.hero_image_url) && (
                     <div style={{ marginTop: '8px', borderRadius: '8px', overflow: 'hidden', height: 160, backgroundColor: '#E8F5E9' }}>
-                       <ResilientImage src={formData.hero_image_url} alt="Hero preview" fallbackLabel="Imagen principal no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                       <ResilientImage src={previews.hero_image_url || formData.hero_image_url} alt="Hero preview" fallbackLabel="Imagen principal no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                   )}
                 </div>

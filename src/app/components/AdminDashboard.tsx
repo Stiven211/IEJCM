@@ -15,14 +15,15 @@ import { AdminStatusMessages } from './admin/AdminStatusMessages'
 import { useAdminStatus } from '../../hooks/useAdminStatus'
 import { inputStyle, handleFocus, handleBlur } from '../../utils/admin-ui-helpers'
 import { logError } from '../../lib/logger'
+import { validateImageFile, deleteFromStorage, toStoragePath } from '../../lib/storage'
 import { ResilientImage } from './ui/ResilientImage'
 import { AdminOverview } from './admin/AdminOverview'
 
 interface AdminDashboardProps {
   onLogout: () => void
   adminUser: { initials: string; name: string; email: string } | null
+  eventsOnly?: boolean
 }
-
 type ModalMode = 'create' | 'edit' | null
 
 interface FormData {
@@ -51,6 +52,8 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
+const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+
 function getStatus(dateStr: string) {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -60,7 +63,7 @@ function getStatus(dateStr: string) {
   return { label: 'Próximo', bg: '#E8F5E9', text: '#006400' }
 }
 
-export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
+export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: AdminDashboardProps) {
   const navigate = useNavigate()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,10 +72,11 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [newFile, setNewFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewUrlRef = useRef<string | null>(null)
 
   const { successMsg, errorMsg, showSuccess, showError } = useAdminStatus()
 
@@ -93,10 +97,33 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
     fetchEvents()
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    }
+  }, [])
+
+  const clearPendingImage = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+    setNewFile(null)
+    setPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const closeModal = () => {
+    setModalMode(null)
+    setEditingEvent(null)
+    setFormData(EMPTY_FORM)
+    clearPendingImage()
+  }
+
   const openCreate = () => {
     setFormData(EMPTY_FORM)
     setEditingEvent(null)
-    setPreview(null)
+    clearPendingImage()
     setModalMode('create')
   }
 
@@ -114,41 +141,69 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
       image: event.image || '',
       active: event.active !== false,
     })
-    setPreview(event.image || null)
+    setNewFile(null)
+    setPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setModalMode('edit')
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
-    setUploading(true)
+
     try {
-      const url = await eventService.uploadEventImage(file)
-      setFormData(prev => ({ ...prev, image: url }))
-      setPreview(url)
+      validateImageFile(file)
     } catch (err) {
-      logError(err, { action: 'uploadEventImage' })
-      showError('No se pudo subir la imagen. Intente de nuevo.')
-    } finally {
-      setUploading(false)
+      logError(err, { action: 'validateEventImage' })
+      showError(err instanceof Error ? err.message : 'Archivo no permitido.')
+      input.value = ''
+      return
     }
+
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    const objectUrl = URL.createObjectURL(file)
+    previewUrlRef.current = objectUrl
+
+    setNewFile(file)
+    setPreview(objectUrl)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
+      let imagePath = formData.image
+
+      if (newFile) {
+        imagePath = await eventService.uploadEventImage(newFile)
+      }
+
+      const payload = { ...formData, image: imagePath }
+
       if (modalMode === 'create') {
-        await eventService.createEvent(formData)
+        await eventService.createEvent(payload)
         showSuccess('Evento creado exitosamente.')
       } else if (modalMode === 'edit' && editingEvent) {
-        await eventService.updateEvent(editingEvent.id, formData)
+        await eventService.updateEvent(editingEvent.id, payload)
+
+        if (newFile && editingEvent.image) {
+          const previousPath = toStoragePath('events', editingEvent.image)
+          if (previousPath && previousPath !== imagePath) {
+            try {
+              await deleteFromStorage('events', previousPath)
+            } catch (storageError) {
+              logError(storageError, { action: 'cleanupReplacedEventImage', eventId: editingEvent.id, path: previousPath })
+            }
+          }
+        }
+
         showSuccess('Evento actualizado exitosamente.')
       }
-      setModalMode(null)
+      closeModal()
       fetchEvents()
     } catch (err) {
       logError(err, { action: 'saveEvent' })
-      showError('No se pudo guardar el evento. Intente de nuevo.')
+      showError(err instanceof Error ? err.message : 'No se pudo guardar el evento. Intente de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -191,7 +246,7 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
@@ -204,19 +259,19 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
       {/* Main */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
         <AdminHeader
-          title="Panel de Eventos"
-          primaryButtonText="Nuevo Evento"
-          onPrimaryAction={openCreate}
+          title={eventsOnly ? 'Gestión de Eventos' : 'Panel administrativo'}
+          primaryButtonText={eventsOnly ? 'Nuevo Evento' : undefined}
+          onPrimaryAction={eventsOnly ? openCreate : undefined}
           onViewSite={() => navigate('/')}
         />
 
         <div style={{ padding: 'clamp(20px, 3vw, 32px)' }}>
           <AdminStatusMessages successMsg={successMsg} errorMsg={errorMsg} />
 
-          <AdminOverview eventsCount={events.length} />
+          {!eventsOnly && <AdminOverview eventsCount={events.length} />}
 
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+          {eventsOnly && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '14px', marginBottom: '24px' }}>
             {[
               { label: 'Total Eventos', value: stats.total, accent: '#006400' },
               { label: 'Próximos', value: stats.upcoming, accent: '#1E40AF' },
@@ -229,9 +284,10 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
               </div>
             ))}
           </div>
+          }
 
           {/* Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          {eventsOnly && <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
             <div style={{ position: 'relative', maxWidth: '380px', flex: 1 }}>
               <label htmlFor="admin-search-events" style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }}>Buscar evento</label>
               <Search size={14} style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', color: '#5A7A5A', pointerEvents: 'none' }} />
@@ -249,9 +305,10 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
             </div>
             <span style={{ color: '#5A7A5A', fontSize: '13px', whiteSpace: 'nowrap' }}>{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
           </div>
+          }
 
           {/* Table */}
-          <AdminDataTable
+          {eventsOnly && <AdminDataTable
             columns={[
               { key: 'title', header: 'Evento', render: (item: Event) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -297,14 +354,14 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
             onDeleteConfirmed={handleDelete}
             onDeleteCancelled={() => setDeleteConfirmId(null)}
             deleteConfirmId={deleteConfirmId}
-          />
+          />}
         </div>
 
         {/* Create / Edit Modal */}
         <AdminModal
           open={!!modalMode}
           title={modalMode === 'create' ? '+ Crear Nuevo Evento' : 'Editar Evento'}
-          onClose={() => { setModalMode(null); setPreview(null) }}
+          onClose={closeModal}
           onSave={handleSave}
           saveLabel={modalMode === 'create' ? 'Crear Evento' : 'Guardar Cambios'}
           cancelLabel="Cancelar"
@@ -367,21 +424,20 @@ export function AdminDashboard({ onLogout, adminUser }: AdminDashboardProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept={IMAGE_INPUT_ACCEPT}
               onChange={handleFileChange}
               style={{ display: 'none' }}
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
             >
-              <Upload size={16} /> {uploading ? 'Subiendo...' : formData.image ? 'Cambiar imagen' : 'Seleccionar imagen'}
+              <Upload size={16} /> {formData.image ? 'Cambiar imagen' : 'Seleccionar imagen'}
             </button>
-            {(formData.image || preview) && (
+            {(preview || formData.image) && (
               <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
-                 <ResilientImage src={formData.image} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                 <ResilientImage src={preview || formData.image} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )}
           </div>

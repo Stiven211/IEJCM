@@ -1,11 +1,15 @@
 import { supabase } from '../lib/supabase'
-import { uploadToStorage } from '../lib/storage'
+import { uploadToStorage, deleteFromStorage, resolveAssetUrl, toStoragePath } from '../lib/storage'
 import { logError } from '../lib/logger'
 import type { Event } from '../app/types'
 
 export type { Event }
 
 const STORAGE_BUCKET = 'events'
+
+function withResolvedImage(event: Event): Event {
+  return { ...event, image: resolveAssetUrl(STORAGE_BUCKET, event.image) }
+}
 
 export async function getAllEvents(activeOnly = true) {
   let query = supabase
@@ -24,7 +28,7 @@ export async function getAllEvents(activeOnly = true) {
     throw error
   }
 
-  return (data || []) as Event[]
+  return ((data || []) as Event[]).map(withResolvedImage)
 }
 
 export async function getEventById(id: string) {
@@ -39,7 +43,7 @@ export async function getEventById(id: string) {
     throw error
   }
 
-  return data as Event | null
+  return data ? withResolvedImage(data as Event) : null
 }
 
 export async function getRelatedEvents(category: string, excludeId: string, limit = 3) {
@@ -57,13 +61,13 @@ export async function getRelatedEvents(category: string, excludeId: string, limi
     throw error
   }
 
-  return (data || []) as Event[]
+  return ((data || []) as Event[]).map(withResolvedImage)
 }
 
 export async function createEvent(payload: Omit<Event, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('events')
-    .insert([payload])
+    .insert([{ ...payload, image: toStoragePath(STORAGE_BUCKET, payload.image) }])
     .select('*')
     .single()
 
@@ -72,13 +76,13 @@ export async function createEvent(payload: Omit<Event, 'id' | 'created_at'>) {
     throw error
   }
 
-  return data as Event
+  return withResolvedImage(data as Event)
 }
 
 export async function updateEvent(id: string, payload: Omit<Event, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('events')
-    .update(payload)
+    .update({ ...payload, image: toStoragePath(STORAGE_BUCKET, payload.image) })
     .eq('id', id)
     .select('*')
     .single()
@@ -88,10 +92,21 @@ export async function updateEvent(id: string, payload: Omit<Event, 'id' | 'creat
     throw error
   }
 
-  return data as Event
+  return withResolvedImage(data as Event)
 }
 
 export async function removeEvent(id: string) {
+  const { data: existing, error: fetchError } = await supabase
+    .from('events')
+    .select('image')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (fetchError) {
+    logError(fetchError)
+    throw fetchError
+  }
+
   const { error } = await supabase
     .from('events')
     .delete()
@@ -100,6 +115,14 @@ export async function removeEvent(id: string) {
   if (error) {
     logError(error)
     throw error
+  }
+
+  if (existing?.image) {
+    try {
+      await deleteFromStorage(STORAGE_BUCKET, existing.image)
+    } catch (storageError) {
+      logError(storageError, { action: 'removeEventStorageCleanup', eventId: id, path: existing.image })
+    }
   }
 }
 

@@ -9,6 +9,7 @@ import { AdminStatusMessages } from './AdminStatusMessages'
 import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import * as galleryService from '../../../services/gallery.service'
 import { logError } from '../../../lib/logger'
+import { validateImageFile, deleteFromStorage, toStoragePath } from '../../../lib/storage'
 import { ResilientImage } from '../ui/ResilientImage'
 
 export interface GalleryAdminPageProps {
@@ -32,6 +33,8 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
+const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+
 export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps) {
   const navigate = useNavigate()
   const [items, setItems] = useState<galleryService.GalleryItem[]>([])
@@ -40,9 +43,10 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
   const [editingItem, setEditingItem] = useState<galleryService.GalleryItem | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [newFile, setNewFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const previewUrlRef = useRef<string | null>(null)
 
   const { successMsg, errorMsg, showSuccess, showError } = useAdminStatus()
 
@@ -63,10 +67,33 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
     fetchItems()
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    }
+  }, [])
+
+  const clearPendingImage = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+    setNewFile(null)
+    setPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const closeModal = () => {
+    setModalMode(null)
+    setEditingItem(null)
+    setFormData(EMPTY_FORM)
+    clearPendingImage()
+  }
+
   const openCreate = () => {
     setFormData(EMPTY_FORM)
     setEditingItem(null)
-    setPreview(null)
+    clearPendingImage()
     setModalMode('create')
   }
 
@@ -79,24 +106,32 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
       category: item.category || '',
       active: item.active !== false,
     })
-    setPreview(item.image_url || null)
+    setNewFile(null)
+    setPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setModalMode('edit')
   }
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target
+    const file = input.files?.[0]
     if (!file) return
-    setUploading(true)
+
     try {
-      const url = await galleryService.uploadGalleryImage(file)
-      setFormData(prev => ({ ...prev, image_url: url }))
-      setPreview(url)
+      validateImageFile(file)
     } catch (err) {
-      logError(err, { action: 'uploadGalleryImage' })
-      showError('No se pudo subir la imagen. Intente de nuevo.')
-    } finally {
-      setUploading(false)
+      logError(err, { action: 'validateGalleryImage' })
+      showError(err instanceof Error ? err.message : 'Archivo no permitido.')
+      input.value = ''
+      return
     }
+
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
+    const objectUrl = URL.createObjectURL(file)
+    previewUrlRef.current = objectUrl
+
+    setNewFile(file)
+    setPreview(objectUrl)
   }
 
   const [saving, setSaving] = useState(false)
@@ -104,18 +139,38 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
   const handleSave = async () => {
     setSaving(true)
     try {
+      let imagePath = formData.image_url
+
+      if (newFile) {
+        imagePath = await galleryService.uploadGalleryImage(newFile)
+      }
+
+      const payload = { ...formData, image_url: imagePath }
+
       if (modalMode === 'create') {
-        await galleryService.createGalleryItem(formData)
+        await galleryService.createGalleryItem(payload)
         showSuccess('Imagen creada exitosamente.')
       } else if (modalMode === 'edit' && editingItem) {
-        await galleryService.updateGalleryItem(editingItem.id, formData)
+        await galleryService.updateGalleryItem(editingItem.id, payload)
+
+        if (newFile && editingItem.image_url) {
+          const previousPath = toStoragePath('gallery', editingItem.image_url)
+          if (previousPath && previousPath !== imagePath) {
+            try {
+              await deleteFromStorage('gallery', previousPath)
+            } catch (storageError) {
+              logError(storageError, { action: 'cleanupReplacedGalleryImage', galleryId: editingItem.id, path: previousPath })
+            }
+          }
+        }
+
         showSuccess('Imagen actualizada exitosamente.')
       }
-      setModalMode(null)
+      closeModal()
       fetchItems()
     } catch (err) {
       logError(err, { action: 'saveGalleryItem' })
-      showError('No se pudo guardar la imagen. Intente de nuevo.')
+      showError(err instanceof Error ? err.message : 'No se pudo guardar la imagen. Intente de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -142,7 +197,7 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
       <AdminSidebar
         sections={[
           { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin' },
+          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
           { label: 'Galería', icon: Image, to: '/admin/gallery' },
           { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
           { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
@@ -201,7 +256,7 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
       <AdminModal
         open={!!modalMode}
         title={modalMode === 'create' ? 'Nueva Imagen' : 'Editar Imagen'}
-        onClose={() => { setModalMode(null); setPreview(null) }}
+        onClose={closeModal}
         onSave={handleSave}
         saveLabel={modalMode === 'create' ? 'Crear' : 'Guardar Cambios'}
         cancelLabel="Cancelar"
@@ -222,21 +277,20 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={IMAGE_INPUT_ACCEPT}
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 14px', border: '1.5px dashed rgba(0,0,0,0.18)', borderRadius: '8px', backgroundColor: '#F8F8F8', color: '#1A1A1A', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}
           >
-            <Upload size={16} /> {uploading ? 'Subiendo...' : formData.image_url ? 'Cambiar imagen' : 'Seleccionar imagen'}
+            <Upload size={16} /> {formData.image_url ? 'Cambiar imagen' : 'Seleccionar imagen'}
           </button>
-          {(formData.image_url || preview) && (
+          {(preview || formData.image_url) && (
             <div style={{ marginTop: '12px', borderRadius: '7px', overflow: 'hidden', height: '140px', backgroundColor: '#E8F5E9' }}>
-               <ResilientImage src={formData.image_url} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+               <ResilientImage src={preview || formData.image_url} alt="Preview" fallbackLabel="Vista previa no disponible" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           )}
         </div>

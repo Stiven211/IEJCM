@@ -1,11 +1,15 @@
 import { supabase } from '../lib/supabase'
-import { uploadToStorage } from '../lib/storage'
+import { uploadToStorage, deleteFromStorage, resolveAssetUrl, toStoragePath } from '../lib/storage'
 import { logError } from '../lib/logger'
 import type { GalleryItem } from '../app/types'
 
 export type { GalleryItem }
 
 const STORAGE_BUCKET = 'gallery'
+
+function withResolvedImage(item: GalleryItem): GalleryItem {
+  return { ...item, image_url: resolveAssetUrl(STORAGE_BUCKET, item.image_url) }
+}
 
 export async function getAllGalleryItems(activeOnly = true) {
   let query = supabase
@@ -24,7 +28,7 @@ export async function getAllGalleryItems(activeOnly = true) {
     throw error
   }
 
-  return (data || []) as GalleryItem[]
+  return ((data || []) as GalleryItem[]).map(withResolvedImage)
 }
 
 export async function getGalleryItemById(id: string) {
@@ -39,13 +43,13 @@ export async function getGalleryItemById(id: string) {
     throw error
   }
 
-  return data as GalleryItem | null
+  return data ? withResolvedImage(data as GalleryItem) : null
 }
 
 export async function createGalleryItem(payload: Omit<GalleryItem, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('gallery')
-    .insert([payload])
+    .insert([{ ...payload, image_url: toStoragePath(STORAGE_BUCKET, payload.image_url) }])
     .select('*')
     .single()
 
@@ -54,13 +58,13 @@ export async function createGalleryItem(payload: Omit<GalleryItem, 'id' | 'creat
     throw error
   }
 
-  return data as GalleryItem
+  return withResolvedImage(data as GalleryItem)
 }
 
 export async function updateGalleryItem(id: string, payload: Omit<GalleryItem, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('gallery')
-    .update(payload)
+    .update({ ...payload, image_url: toStoragePath(STORAGE_BUCKET, payload.image_url) })
     .eq('id', id)
     .select('*')
     .single()
@@ -70,18 +74,37 @@ export async function updateGalleryItem(id: string, payload: Omit<GalleryItem, '
     throw error
   }
 
-  return data as GalleryItem
+  return withResolvedImage(data as GalleryItem)
 }
 
 export async function removeGalleryItem(id: string) {
-  const { error } = await supabase
+  const { data, error: fetchError } = await supabase
+    .from('gallery')
+    .select('image_url')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (fetchError) {
+    logError(fetchError)
+    throw fetchError
+  }
+
+  const { error: deleteError } = await supabase
     .from('gallery')
     .delete()
     .eq('id', id)
 
-  if (error) {
-    logError(error)
-    throw error
+  if (deleteError) {
+    logError(deleteError)
+    throw deleteError
+  }
+
+  if (data?.image_url) {
+    try {
+      await deleteFromStorage('gallery', data.image_url)
+    } catch (storageError) {
+      logError(storageError, { action: 'removeGalleryItemStorageCleanup', galleryId: id, path: data.image_url })
+    }
   }
 }
 

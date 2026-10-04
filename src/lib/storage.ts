@@ -6,7 +6,10 @@ const MAX_DOCUMENT_FILE_SIZE = 20 * 1024 * 1024
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
+  'image/jpg',
+  'image/pjpeg',
   'image/png',
+  'image/x-png',
   'image/webp',
 ])
 
@@ -29,16 +32,19 @@ const ALLOWED_DOCUMENT_EXTENSIONS = new Set([
   'docx',
 ])
 
-const IMAGE_MIME_TO_EXTENSION: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
+const IMAGE_MIME_TO_EXTENSIONS: Record<string, string[]> = {
+  'image/jpeg': ['jpg', 'jpeg'],
+  'image/jpg': ['jpg', 'jpeg'],
+  'image/pjpeg': ['jpg', 'jpeg'],
+  'image/png': ['png'],
+  'image/x-png': ['png'],
+  'image/webp': ['webp'],
 }
 
-const DOCUMENT_MIME_TO_EXTENSION: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+const DOCUMENT_MIME_TO_EXTENSIONS: Record<string, string[]> = {
+  'application/pdf': ['pdf'],
+  'application/msword': ['doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['docx'],
 }
 
 function getFileExtension(file: File): string {
@@ -50,7 +56,7 @@ function getFileExtension(file: File): string {
   return name.slice(lastDot + 1).toLowerCase()
 }
 
-function validateImageFile(file: File): void {
+export function validateImageFile(file: File): void {
   if (file.size === 0) {
     throw new Error('El archivo está vacío.')
   }
@@ -69,7 +75,8 @@ function validateImageFile(file: File): void {
     throw new Error('Extensión de archivo no permitida.')
   }
 
-  if (IMAGE_MIME_TO_EXTENSION[mime] !== ext) {
+  const validExts = IMAGE_MIME_TO_EXTENSIONS[mime]
+  if (!validExts || !validExts.includes(ext)) {
     throw new Error('La extensión no coincide con el tipo de archivo.')
   }
 }
@@ -93,7 +100,8 @@ function validateDocumentFile(file: File): void {
     throw new Error('Extensión de archivo no permitida. Solo .pdf, .doc y .docx.')
   }
 
-  if (DOCUMENT_MIME_TO_EXTENSION[mime] !== ext) {
+  const validExts = DOCUMENT_MIME_TO_EXTENSIONS[mime]
+  if (!validExts || !validExts.includes(ext)) {
     throw new Error('La extensión no coincide con el tipo de archivo.')
   }
 }
@@ -111,6 +119,46 @@ export function generateDocumentPath(file: File): string {
 export function getStoragePublicUrl(bucket: string, path: string): string {
   const { data } = supabase.storage.from(bucket).getPublicUrl(path)
   return data.publicUrl
+}
+
+const STORAGE_URL_PATTERN =
+  /^https?:\/\/[^/]+\/storage\/v1\/object\/(?:public|sign)\/([^/?#]+)\/(.+)$/
+
+/**
+ * Normaliza cualquier valor de asset a un path de Storage.
+ * Acepta un path desnudo o una URL absoluta de Storage (public/sign) y
+ * devuelve solo el path, para poder pasarlo a upload/remove sin ambiguedad.
+ */
+export function toStoragePath(bucket: string, value: string | null | undefined): string {
+  if (!value) return ''
+
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('data:')) return trimmed
+
+  const match = STORAGE_URL_PATTERN.exec(trimmed)
+  if (match) {
+    const urlBucket = match[1]
+    const path = decodeURIComponent(match[2])
+    return urlBucket === bucket ? path : ''
+  }
+
+  return trimmed.replace(/^\/+/, '')
+}
+
+/**
+ * Convierte un valor de asset en algo que se pueda usar como src de <img>.
+ * Las filas que guardan un path desnudo se resuelven contra el bucket publico.
+ * Las URLs absolutas y los data: URL se devuelven tal cual.
+ */
+export function resolveAssetUrl(bucket: string, value: string | null | undefined): string {
+  if (!value) return ''
+
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (trimmed.startsWith('data:') || /^(?:https?:)?\/\//i.test(trimmed)) return trimmed
+
+  return getStoragePublicUrl(bucket, toStoragePath(bucket, trimmed))
 }
 
 export async function uploadToStorage(bucket: string, file: File): Promise<string> {
@@ -150,10 +198,13 @@ export async function uploadDocumentToStorage(bucket: string, file: File): Promi
 }
 
 export async function deleteFromStorage(bucket: string, path: string): Promise<void> {
-  const { error } = await supabase.storage.from(bucket).remove([path])
+  const normalized = toStoragePath(bucket, path)
+  if (!normalized || normalized.startsWith('data:')) return
+
+  const { error } = await supabase.storage.from(bucket).remove([normalized])
 
   if (error) {
-    logError(error)
+    logError(error, { action: 'deleteFromStorage', bucket, path: normalized })
     throw error
   }
 }
