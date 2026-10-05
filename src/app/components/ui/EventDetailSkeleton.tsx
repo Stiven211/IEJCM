@@ -13,7 +13,7 @@ export function EventDetailSkeleton() {
       </div>
 
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px' }}>
-        <div style={{ display: 'grid', gap: '32px', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', alignItems: 'flex-start' }}>
+        <div className="event-detail-grid">
           <div>
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: 'clamp(24px, 3vw, 40px)', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 2px 14px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
               <div className="sk" style={{ height: 20, width: 160, borderRadius: 12, backgroundImage: shimmerBackground, backgroundSize: '200% 100%', animationName: 'shimmer', animationDuration: '2s', animationTimingFunction: 'ease-in-out', animationIterationCount: 'infinite', marginBottom: 22 }} />

@@ -68,3 +68,28 @@ html {
 img {
   transition: opacity 300ms ease;
 }
+
+/* ==========================================================================
+   Grid de dos columnas del detalle de evento.
+
+   Estaba en un estilo en linea con 'minmax(0, 2fr) minmax(260px, 1fr)'. El
+   minimo fijo de 260px de la segunda columna no baja: en 390px de viewport,
+   con 24px de padding por lado y 32px de gap, solo quedaban ~50px para la
+   primera, y el texto se partia letra por letra ("Arranq / del / segund").
+
+   En movil pasa a una sola columna. 899px es el mismo breakpoint que ya usan
+   .desktop-nav / .mobile-nav-toggle mas arriba.
+   ========================================================================== */
+.event-detail-grid {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  align-items: flex-start;
+}
+
+@media (max-width: 899px) {
+  .event-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}

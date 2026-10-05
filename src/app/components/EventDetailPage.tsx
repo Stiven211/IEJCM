@@ -77,7 +77,14 @@ export function EventDetailPage() {
 
   return (
     <div style={{ backgroundColor: '#F8F8F8', minHeight: '100vh' }}>
-      <div style={{ position: 'relative', height: 'clamp(300px, 48vh, 520px)', overflow: 'hidden', backgroundColor: '#002200' }}>
+      <div style={{
+        position: 'relative',
+        // sin foto el bloque es solo el degradado: 400px de verde vacio no
+        // aportan nada y empujan el contenido muy hacia abajo
+        height: event.image ? 'clamp(300px, 48vh, 520px)' : 'clamp(210px, 30vh, 330px)',
+        overflow: 'hidden',
+        backgroundColor: '#002200',
+      }}>
         {event.image && (
           <ResilientImage
             src={event.image}
@@ -115,7 +122,8 @@ export function EventDetailPage() {
       </div>
 
       <div className="fade-in-up" style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 24px', animationDelay: '120ms' }}>
-        <div style={{ display: 'grid', gap: '32px', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', alignItems: 'flex-start' }}>
+        {/* La clase lleva el colapso a una columna en movil; ver globals.css */}
+        <div className="event-detail-grid">
 
           <div>
             <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: 'clamp(24px, 3vw, 40px)', border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 2px 14px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
