@@ -33,6 +33,52 @@ on conflict (user_id) do update set role = 'admin';
 `user_roles` no tiene policy de INSERT ni de UPDATE: la app no puede otorgar
 roles, solo leer el propio (`useIsAdmin.ts:30`).
 
+## Pausa por inactividad
+
+Supabase pausa los proyectos del plan Free tras **7 días con poca actividad en
+la base de datos**. Al pausarse, el sitio en Vercel se cae: la app no monta y
+queda en blanco con `Error: supabaseUrl is required` en consola.
+
+Hay dos avisos por email: uno ~1 semana antes de la pausa y otro al confirmarla.
+La ventana para restaurar un proyecto pausado es de **1 año**.
+
+La solución de verdad es el plan Pro (USD 10/mes), que no se pausa. Mientras se
+este en Free, el repo tiene un parche automático.
+
+### Keep-alive automático
+
+`.github/workflows/keep-alive.yml` corre a diario (04:17 UTC) y hace una
+consulta real a PostgREST por cada tabla. Se puede disparar a mano desde la
+pestaña **Actions → Supabase keep-alive → Run workflow**.
+
+Requiere dos secrets en **Settings → Secrets and variables → Actions**:
+
+| Secret | Valor |
+|---|---|
+| `SUPABASE_URL` | la URL del proyecto, sin comillas |
+| `SUPABASE_ANON_KEY` | la publishable key, sin comillas |
+
+Si faltan, el job falla con un error explicito en vez de pasar en verde: es
+deliberado, para que un secret sin configurar sea visible y no parezca que el
+keep-alive esta funcionando.
+
+Ademas del keep-alive, el mismo workflow consulta el sitio desplegado y avisa
+con un `warning` si Vercel no responde. Eso no hace fallar el job: son dos
+cosas separadas y no conviene enmascarar una con la otra.
+
+### Limitaciones que hay que conocer
+
+- **Es un parche, no una garantia.** Si el workflow deja de correr, el proyecto
+  se pausa. El aviso por email es la red de seguridad.
+- **El repo es publico.** GitHub desactiva los workflows programados en repos
+  publicos tras 60 días sin actividad en el repo. Cualquier commit reinicia ese
+  reloj; si el proyecto queda abandonado mas de 60 días, el cron muere en
+  silencio. Para blindarlo, la alternativa es un cron de Vercel, que no depende
+  de la actividad del repo.
+- **La peticion es de lectura y sin credenciales de servicio.** No escribe nada
+  ni consume cuota de mas: es un `select id limit 1` con la publishable key, la
+  misma que ya viaja en el bundle del navegador.
+
 ## Orden de las migraciones
 
 | Timestamp | Que hace |

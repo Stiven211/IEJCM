@@ -1,0 +1,80 @@
+name: Supabase keep-alive
+
+# Supabase pausa los proyectos del plan Free tras 7 días con poca actividad en
+# la base de datos, y el aviso le llega por email al owner. Este workflow genera
+# esa actividad para que el proyecto no se suspenda solo.
+#
+# La alternativa real es el plan Pro (USD 10/mes), que no se pausa. Esto es un
+# parche gratis y tiene una ventana de fallo: si el workflow deja de correr, el
+# proyecto se pausa y el sitio en Vercel se cae hasta que se restaure a mano.
+on:
+  schedule:
+    # 04:17 UTC a proposito: los cron de GitHub se ejecutan al inicio de la hora
+    # y el minuto 0 satura la cola, delaying el arranque varios minutos.
+    - cron: '17 4 * * *'
+  # permite dispararlo a mano desde la pestaña Actions para verificar
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keep-alive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Consultar la base para resetear el reloj de inactividad
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Verificar configuracion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Faltan SUPABASE_URL y/o SUPABASE_ANON_KEY. Configuralos en Settings > Secrets and variables > Actions > New repository secret."
+            exit 1
+          fi
+          echo "URL: ${SUPABASE_URL}"
+
+      # Una consulta real a PostgREST por tabla. El health endpoint de auth no
+      # cuenta: la politica de Supabase pide actividad de base de datos.
+      - name: Consultar la base
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -uo pipefail
+          failed=0
+          for tabla in announcements events gallery school_info; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              "${SUPABASE_URL}/rest/v1/${tabla}?select=id&limit=1" \
+              -H "apikey: ${SUPABASE_ANON_KEY}")
+            echo "${tabla} -> HTTP ${codigo}"
+            if [ "$codigo" != "200" ]; then
+              echo "::error::La consulta a ${tabla} devolvio ${codigo}"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::Alguna consulta fallo. Si es 401, el secret SUPABASE_ANON_KEY esta mal."
+            exit 1
+          fi
+          echo "Las 4 consultas respondieron 200."
+
+      # Aviso adicional, no falla el job: si Vercel esta caido queremos enterarnos,
+      # pero eso no significa que el keep-alive haya fallado.
+      - name: Verificar el sitio desplegado
+        run: |
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 https://colegio-jcm-mutis.vercel.app/)
+          echo "colegio-jcm-mutis.vercel.app -> HTTP ${codigo}"
+          if [ "$codigo" != "200" ]; then
+            echo "::warning::El sitio desplegado respondio ${codigo}. El keep-alive de Supabase si funciono; el problema esta en Vercel."
+          fi
+
+      - name: Resumen
+        run: echo "Proyecto Supabase activo. Proxima corrida: manana 04:17 UTC."
