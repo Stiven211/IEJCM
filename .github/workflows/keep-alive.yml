@@ -12,8 +12,17 @@ on:
     # 04:17 UTC a proposito: los cron de GitHub se ejecutan al inicio de la hora
     # y el minuto 0 satura la cola, delaying el arranque varios minutos.
     - cron: '17 4 * * *'
-  # permite dispararlo a mano desde la pestaña Actions para verificar
+
+  # permite dispararlo a mano desde la pestaña Actions
   workflow_dispatch:
+
+  # Solo cuando se toca este archivo. Push a main sin tocar el workflow no
+  # genera ninguna corrida, pero permite verificar un cambio al keep-alive
+  # simplemente pusheandolo, sin depender de la UI de GitHub.
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/keep-alive.yml
 
 permissions:
   contents: read
@@ -28,27 +37,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    steps:
-      - name: Verificar configuracion
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
-            echo "::error::Faltan SUPABASE_URL y/o SUPABASE_ANON_KEY. Configuralos en Settings > Secrets and variables > Actions > New repository secret."
-            exit 1
-          fi
-          echo "URL: ${SUPABASE_URL}"
+    env:
+      # Clave publishable (sb_publishable_): esta hecha para viajar en el
+      # navegador y ya esta expuesta en el bundle del sitio publicado en
+      # Vercel, asi que no es un secreto. Por eso va en claro y no en un
+      # secret de GitHub: un secret sin configurar es la unica forma de que
+      # este workflow falle sin que nadie lo note, y para un keep-alive eso
+      # es exactamente el fallo que tiene que evitar.
+      #
+      # Si algun dia se cambia a una clave de servicio, mover esto a
+      # secrets.SUPABASE_ANON_KEY y borrar estas dos lineas.
+      SUPABASE_URL: https://rkbwrnapphehxvbatvia.supabase.co
+      SUPABASE_ANON_KEY: sb_publishable_a0ZGIxCnhWeWFL2HJwKzig_mzsDvyR2
 
+    steps:
       # Una consulta real a PostgREST por tabla. El health endpoint de auth no
       # cuenta: la politica de Supabase pide actividad de base de datos.
       - name: Consultar la base
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -uo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Faltan SUPABASE_URL o SUPABASE_ANON_KEY"
+            exit 1
+          fi
           failed=0
           for tabla in announcements events gallery school_info; do
             codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
@@ -56,18 +67,17 @@ jobs:
               -H "apikey: ${SUPABASE_ANON_KEY}")
             echo "${tabla} -> HTTP ${codigo}"
             if [ "$codigo" != "200" ]; then
-              echo "::error::La consulta a ${tabla} devolvio ${codigo}"
+              echo "::error::La consulta a ${tabla} devolvio ${codigo}. Si es 401, la key cambio o el proyecto esta pausado."
               failed=1
             fi
           done
           if [ "$failed" -ne 0 ]; then
-            echo "::error::Alguna consulta fallo. Si es 401, el secret SUPABASE_ANON_KEY esta mal."
             exit 1
           fi
           echo "Las 4 consultas respondieron 200."
 
-      # Aviso adicional, no falla el job: si Vercel esta caido queremos enterarnos,
-      # pero eso no significa que el keep-alive haya fallado.
+      # Aviso adicional, no falla el job: si Vercel esta caido queremos
+      # enterarnos, pero eso no significa que el keep-alive haya fallado.
       - name: Verificar el sitio desplegado
         run: |
           codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 https://colegio-jcm-mutis.vercel.app/)
@@ -77,4 +87,4 @@ jobs:
           fi
 
       - name: Resumen
-        run: echo "Proyecto Supabase activo. Proxima corrida: manana 04:17 UTC."
+        run: echo "Proyecto Supabase activo."

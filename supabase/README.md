@@ -51,16 +51,18 @@ este en Free, el repo tiene un parche automático.
 consulta real a PostgREST por cada tabla. Se puede disparar a mano desde la
 pestaña **Actions → Supabase keep-alive → Run workflow**.
 
-Requiere dos secrets en **Settings → Secrets and variables → Actions**:
+**No necesita configuracion previa.** No usa secrets: la publishable key esta
+escrita en el propio archivo. Es deliberado, por dos razones:
 
-| Secret | Valor |
-|---|---|
-| `SUPABASE_URL` | la URL del proyecto, sin comillas |
-| `SUPABASE_ANON_KEY` | la publishable key, sin comillas |
+- No aporta seguridad oculta. La clave es publishable y ya viaja en el bundle
+  del sitio publicado.
+- Un secret sin configurar es la unica forma de que este workflow falle sin
+  que nadie lo note. Para un keep-alive, ese es justo el fallo que hay que
+  evitar, asi que se elimina esa posibilidad de entrada.
 
-Si faltan, el job falla con un error explicito en vez de pasar en verde: es
-deliberado, para que un secret sin configurar sea visible y no parezca que el
-keep-alive esta funcionando.
+El workflow tambien corre en `push` cuando se modifica el archivo mismo. Eso
+permite verificar un cambio al keep-alive pusheandolo, sin depender de la UI
+de GitHub.
 
 Ademas del keep-alive, el mismo workflow consulta el sitio desplegado y avisa
 con un `warning` si Vercel no responde. Eso no hace fallar el job: son dos
