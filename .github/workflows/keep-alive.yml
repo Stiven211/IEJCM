@@ -38,17 +38,18 @@ jobs:
     timeout-minutes: 5
 
     env:
-      # Clave publishable (sb_publishable_): esta hecha para viajar en el
-      # navegador y ya esta expuesta en el bundle del sitio publicado en
-      # Vercel, asi que no es un secreto. Por eso va en claro y no en un
-      # secret de GitHub: un secret sin configurar es la unica forma de que
-      # este workflow falle sin que nadie lo note, y para un keep-alive eso
-      # es exactamente el fallo que tiene que evitar.
+      # Prioridad: el secret del repo si existe, y si no el valor en claro.
       #
-      # Si algun dia se cambia a una clave de servicio, mover esto a
-      # secrets.SUPABASE_ANON_KEY y borrar estas dos lineas.
-      SUPABASE_URL: https://rkbwrnapphehxvbatvia.supabase.co
-      SUPABASE_ANON_KEY: sb_publishable_a0ZGIxCnhWeWFL2HJwKzig_mzsDvyR2
+      # El respaldo en claro existe para que un keep-alive nunca falle por
+      # configuracion: es la unica forma de que se caiga en silencio, que es
+      # justo lo que tiene que evitar. No aporta seguridad oculta, la clave es
+      # publishable (sb_publishable_), esta hecha para el navegador y ya viaja
+      # en el bundle del sitio publicado en Vercel.
+      #
+      # Con los secrets cargados (Settings > Secrets and variables > Actions)
+      # se usa el valor de ahi y el de abajo queda de plano.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://rkbwrnapphehxvbatvia.supabase.co' }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'sb_publishable_a0ZGIxCnhWeWFL2HJwKzig_mzsDvyR2' }}
 
     steps:
       # Una consulta real a PostgREST por tabla. El health endpoint de auth no
@@ -60,6 +61,12 @@ jobs:
             echo "::error::Faltan SUPABASE_URL o SUPABASE_ANON_KEY"
             exit 1
           fi
+          echo "Proyecto: ${SUPABASE_URL}"
+          case "$SUPABASE_ANON_KEY" in
+            sb_publishable_*)  echo "Clave: publishable (sb_publishable_)" ;;
+            sb_secret_*)       echo "Clave: de servicio (sb_secret_) <<< revisar permisos" ;;
+            *)                 echo "Clave: formato inesperado (empieza por ${SUPABASE_ANON_KEY:0:11}...)" ;;
+          esac
           failed=0
           for tabla in announcements events gallery school_info; do
             codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
