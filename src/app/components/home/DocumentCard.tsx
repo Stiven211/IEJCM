@@ -1,14 +1,16 @@
 import { memo } from 'react'
-import { FileText, Calendar, Download } from 'lucide-react'
+import { FileText, Calendar, Download, Loader2 } from 'lucide-react'
 import type { Document } from '../../types'
 import { getCategoryLabel } from './DocumentCategory'
 
 interface DocumentCardProps {
   document: Document
   onDownload?: (document: Document) => void
+  /** El archivo se esta trayendo: algunos pesan varios MB y hay que avisar. */
+  downloading?: boolean
 }
 
-export const DocumentCard = memo(function DocumentCard({ document, onDownload }: DocumentCardProps) {
+export const DocumentCard = memo(function DocumentCard({ document, onDownload, downloading = false }: DocumentCardProps) {
   const publishedDate = document.published_at ? new Date(document.published_at) : new Date(document.created_at || '')
 
   const handleClick = () => {
@@ -129,7 +131,16 @@ export const DocumentCard = memo(function DocumentCard({ document, onDownload }:
           </span>
           {document.is_public && (
             <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#006400', fontSize: '12px', fontWeight: 600 }}>
-              <Download size={14} /> Descargar
+              {downloading ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+                  Descargando…
+                </>
+              ) : (
+                <>
+                  <Download size={14} /> Descargar
+                </>
+              )}
             </span>
           )}
         </div>

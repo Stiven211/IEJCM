@@ -19,12 +19,24 @@ export function Footer() {
   }, [])
 
   const schoolName = info?.school_name || 'Colegio José Celestino Mutis'
-  const address = info?.address || 'Calle 8 #12-45, San José del Guaviare, Guaviare, Colombia'
+  // Sin fallback inventado: una dirección equivocada manda a los padres al
+  // lugar equivocado, que es peor que no mostrar ninguna.
+  const address = info?.address || ''
   const phone = info?.phone || ''
   const email = info?.email || ''
   const facebook = info?.facebook || ''
   const instagram = info?.instagram || ''
   const youtube = info?.youtube || ''
+  const nit = info?.nit?.trim() || ''
+  const daneCode = info?.dane_code?.trim() || ''
+
+  // NIT y DANE son identificadores oficiales. Antes ponia valores inventados
+  // hardcodeados (NIT: 892.099.311-7 · DANE: 150001006434); ahora solo se
+  // muestran si el administrador los cargo desde Informacion Institucional.
+  const legalIds = [
+    ...(nit ? [{ label: 'NIT', value: nit }] : []),
+    ...(daneCode ? [{ label: 'DANE', value: daneCode }] : []),
+  ]
 
   const contactLines = [
     ...(address ? [{ Icon: MapPin, text: address }] : []),
@@ -144,9 +156,11 @@ export function Footer() {
           <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '13px' }}>
             © 2026 {schoolName}. Todos los derechos reservados.
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '12px' }}>
-            NIT: 892.099.311-7 · DANE: 150001006434
-          </div>
+          {legalIds.length > 0 && (
+            <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: '12px' }}>
+              {legalIds.map(({ label, value }) => `${label}: ${value}`).join(' · ')}
+            </div>
+          )}
         </div>
       </div>
     </footer>

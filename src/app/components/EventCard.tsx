@@ -22,6 +22,7 @@ export const EventCard = memo(({ event, onClick }: EventCardProps) => {
 
   const catColor = CATEGORY_COLORS[event.category]
   const catLabel = CATEGORY_LABELS[event.category]
+  const hasImage = Boolean(event.image)
 
   return (
     <div
@@ -42,24 +43,36 @@ export const EventCard = memo(({ event, onClick }: EventCardProps) => {
       }}
     >
       <div style={{ position: 'relative', height: '210px', overflow: 'hidden', backgroundColor: '#E8F5E9', flexShrink: 0 }}>
-        <ResilientImage
-          src={event.image}
-          alt={event.title}
-          fallbackLabel="Imagen del evento no disponible"
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setImgLoaded(true)}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
-            transform: hovered ? 'scale(1.07)' : 'scale(1)',
-            opacity: imgLoaded ? 1 : 0,
-            willChange: hovered ? 'transform' : 'auto',
-          }}
-        />
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 55%)' }} />
+        {hasImage ? (
+          <ResilientImage
+            src={event.image}
+            alt={event.title}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setImgLoaded(true)}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: 'transform 0.45s cubic-bezier(0.4, 0, 0.2, 1)',
+              transform: hovered ? 'scale(1.07)' : 'scale(1)',
+              opacity: imgLoaded ? 1 : 0,
+              willChange: hovered ? 'transform' : 'auto',
+            }}
+          />
+        ) : (
+          /* Sin foto: degradado en el color de la categoria en vez de un cartel
+             que diga "no disponible", que de cara a una presentacion se lee como
+             un error. La altura se mantiene para que la grilla no se descuadre. */
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: `linear-gradient(140deg, ${catColor.bg} 0%, #F4FAF4 55%, #E8F5E9 100%)`,
+          }} />
+        )}
+        {hasImage && (
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.28) 0%, transparent 55%)' }} />
+        )}
 
         <div style={{
           position: 'absolute',

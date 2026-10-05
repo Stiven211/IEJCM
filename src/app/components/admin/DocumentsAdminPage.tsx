@@ -128,18 +128,28 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
 
   const handleDownload = async (item: documentService.Document) => {
     setDownloadingId(item.id)
+    let objectUrl: string | null = null
     try {
       const url = await getStorageSignedUrl('documents', item.file_path)
+      // La signed url es de otro origen y el atributo download solo funciona
+      // same-origin: asignarla a un <a> abriria el PDF en la pestana. Se trae
+      // como blob y se descarga desde un object URL.
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`La descarga respondio ${res.status}`)
+
+      objectUrl = URL.createObjectURL(await res.blob())
+
       const link = document.createElement('a')
-      link.href = url
+      link.href = objectUrl
       link.download = item.file_name || `${item.title}.${item.file_extension || 'bin'}`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
     } catch (err) {
-      logError(err, { action: 'downloadDocument' })
+      logError(err, { action: 'downloadDocument', documentId: item.id })
       showError('No se pudo descargar el documento.')
     } finally {
+      if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl as string), 4000)
       setDownloadingId(null)
     }
   }

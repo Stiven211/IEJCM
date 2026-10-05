@@ -4,6 +4,8 @@ import { logError } from './logger'
 const MAX_IMAGE_FILE_SIZE = 5 * 1024 * 1024
 const MAX_DOCUMENT_FILE_SIZE = 20 * 1024 * 1024
 
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/+$/, '')
+
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
@@ -217,5 +219,13 @@ export async function getDocumentSignedUrl(bucket: string, path: string): Promis
     throw error
   }
 
-  return data.signedUrl
+  // createSignedUrl devuelve una RUTA relativa:
+  //   /object/sign/documents/documents/123.pdf?token=...
+  // Si se usa tal cual como href, el navegador la pide contra el origen del
+  // sitio, el catch-all de Vercel (/.* -> index.html) responde el HTML del SPA
+  // y el usuario se descarga un index.html renombrado a .pdf en vez del
+  // documento. Por eso se devuelve absoluta.
+  return data.signedUrl.startsWith('/')
+    ? `${SUPABASE_URL}${data.signedUrl}`
+    : data.signedUrl
 }

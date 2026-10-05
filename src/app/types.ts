@@ -53,6 +53,10 @@ export interface SchoolInfo {
   hero_badge_color: string
   hero_title: string
   hero_subtitle: string
+  /** NIT de la institucion. El footer lo omite si viene vacio. */
+  nit: string
+  /** Codigo DANE. El footer lo omite si viene vacio. */
+  dane_code: string
   updated_at: string
 }
 

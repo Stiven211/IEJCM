@@ -35,6 +35,46 @@ export function DocumentsPage() {
     load()
   }, [load])
 
+  // DocumentCard.handleClick solo hace algo si recibe onDownload. Sin esto la
+  // tarjeta se ve pulsable (cursor pointer, role=button, etiqueta "Descargar")
+  // pero el click no hace nada: el bucket documents es privado y hace falta una
+  // signed url para servir cada archivo.
+  //
+  // La signed url es de otro origen (Supabase) y el atributo download solo
+  // funciona same-origin, asi que asignarla a un <a> abriria el PDF en la
+  // pestana en vez de bajarlo. Se trae el archivo como blob y se descarga desde
+  // un object URL para que el usuario no salga del sitio.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  const handleDownload = useCallback(async (doc: Document) => {
+    setDownloadingId(doc.id)
+    let objectUrl: string | null = null
+    try {
+      const url = await documentService.getDocumentSignedUrl(doc)
+      if (!url) throw new Error('El servicio no devolvio una URL de descarga.')
+
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`La descarga respondio ${res.status}`)
+
+      const blob = await res.blob()
+      objectUrl = URL.createObjectURL(blob)
+
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = doc.file_name
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (err) {
+      logError(err, { action: 'downloadDocument', documentId: doc.id })
+      alert('No se pudo descargar el documento. Intente de nuevo.')
+    } finally {
+      // revocar despues de que el navegador tomara el blob
+      if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl as string), 4000)
+      setDownloadingId(null)
+    }
+  }, [])
+
   const filteredDocuments = useMemo(() => {
     let list = [...allDocuments]
 
@@ -114,7 +154,12 @@ export function DocumentsPage() {
         ) : filteredDocuments.length > 0 ? (
           <div className="fade-in-up" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px', animationDelay: '120ms' }}>
             {filteredDocuments.map(document => (
-              <DocumentCard key={document.id} document={document} />
+              <DocumentCard
+                key={document.id}
+                document={document}
+                onDownload={handleDownload}
+                downloading={downloadingId === document.id}
+              />
             ))}
           </div>
         ) : (

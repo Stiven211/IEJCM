@@ -11,6 +11,9 @@ const SCHOOL_INFO_CACHE_TTL = 5 * 60 * 1000
 
 const MEDIA_FIELDS = ['logo_url', 'hero_image_url'] as const
 
+/** Campos de texto opcional: '' y '   ' se guardan como null, no como cadena vacía. */
+const OPTIONAL_TEXT_FIELDS = ['phone', 'nit', 'dane_code', 'facebook', 'instagram', 'youtube'] as const
+
 function withResolvedMedia(info: SchoolInfo): SchoolInfo {
   const next = { ...info }
   for (const field of MEDIA_FIELDS) {
@@ -24,6 +27,12 @@ function withStoredMedia<T extends Record<string, unknown>>(payload: T): T {
   for (const field of MEDIA_FIELDS) {
     if (field in next) {
       next[field] = toStoragePath(STORAGE_BUCKET, next[field] as string)
+    }
+  }
+  for (const field of OPTIONAL_TEXT_FIELDS) {
+    if (field in next) {
+      const v = next[field]
+      next[field] = typeof v === 'string' && v.trim() ? v.trim() : null
     }
   }
   return next

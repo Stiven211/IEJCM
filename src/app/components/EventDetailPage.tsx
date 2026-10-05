@@ -78,14 +78,17 @@ export function EventDetailPage() {
   return (
     <div style={{ backgroundColor: '#F8F8F8', minHeight: '100vh' }}>
       <div style={{ position: 'relative', height: 'clamp(300px, 48vh, 520px)', overflow: 'hidden', backgroundColor: '#002200' }}>
-        <ResilientImage
-          src={event.image}
-          alt={event.title}
-          fallbackLabel="Imagen del evento no disponible"
-          decoding="async"
-          onLoad={() => setImgLoaded(true)}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: imgLoaded ? 0.5 : 0, transition: 'opacity 350ms ease' }}
-        />
+        {event.image && (
+          <ResilientImage
+            src={event.image}
+            alt={event.title}
+            decoding="async"
+            onLoad={() => setImgLoaded(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: imgLoaded ? 0.5 : 0, transition: 'opacity 350ms ease' }}
+          />
+        )}
+        {/* Sin foto el fondo verde oscuro del contenedor hace de base, asi que no
+            hace falta un cartel de "no disponible" encima. */}
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,15,0,0.97) 0%, rgba(0,40,0,0.6) 45%, transparent 100%)' }} />
 
         <button

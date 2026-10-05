@@ -34,6 +34,8 @@ interface FormData {
   hero_subtitle: string
   hero_badge: string
   hero_badge_color: string
+  nit: string
+  dane_code: string
 }
 
 const EMPTY_FORM: FormData = {
@@ -53,6 +55,8 @@ const EMPTY_FORM: FormData = {
   hero_subtitle: '',
   hero_badge: 'cerrado',
   hero_badge_color: '#991B1B',
+  nit: '',
+  dane_code: '',
 }
 
 const BADGE_STATES = {
@@ -95,6 +99,8 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
           facebook: data.facebook || '',
           instagram: data.instagram || '',
           youtube: data.youtube || '',
+          nit: data.nit || '',
+          dane_code: data.dane_code || '',
           logo_url: data.logo_url || '',
           hero_image_url: data.hero_image_url || '',
           hero_title: data.hero_title || '',
@@ -299,7 +305,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
                  </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Dirección</label>
-                  <input type="text" value={formData.address} onChange={e => updateField('address', e.target.value)} placeholder="Calle 8 #12-45, San José del Guaviare" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <input type="text" value={formData.address} onChange={e => updateField('address', e.target.value)} placeholder="Dirección de la sede" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div>
@@ -308,9 +314,22 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Correo electrónico</label>
-                    <input type="email" value={formData.email} onChange={e => updateField('email', e.target.value)} placeholder="rectoria@jcmutis.edu.co" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                    <input type="email" value={formData.email} onChange={e => updateField('email', e.target.value)} placeholder="rectoria@ejcm.edu.co" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
                   </div>
                 </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>NIT</label>
+                    <input type="text" value={formData.nit} onChange={e => updateField('nit', e.target.value)} placeholder="Se muestra en el footer si tiene valor" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Código DANE</label>
+                    <input type="text" value={formData.dane_code} onChange={e => updateField('dane_code', e.target.value)} placeholder="Se muestra en el footer si tiene valor" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  </div>
+                </div>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6B7280', lineHeight: 1.5 }}>
+                  NIT y DANE son identificadores oficiales del colegio. Si quedan vacíos no se muestran en el pie de página.
+                </p>
               </div>
             </div>
 
