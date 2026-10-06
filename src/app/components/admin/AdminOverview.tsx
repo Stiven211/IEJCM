@@ -60,12 +60,12 @@ export function AdminOverview({ eventsCount }: AdminOverviewProps) {
   useEffect(() => { loadOverview() }, [loadOverview])
 
   const cards: OverviewCard[] = [
-    { key: 'events', label: 'Eventos', description: 'Total administrativo', to: '/admin/events', icon: CalendarDays, state: { status: 'success', value: String(eventsCount) } },
-    { key: 'gallery', label: 'Galería', description: 'Total administrativo', to: '/admin/gallery', icon: Image, state: overview.gallery },
-    { key: 'announcements', label: 'Avisos', description: 'Total administrativo', to: '/admin/announcements', icon: Megaphone, state: overview.announcements },
-    { key: 'documents', label: 'Documentos', description: 'Total administrativo', to: '/admin/documents', icon: FileText, state: overview.documents },
-    { key: 'messages', label: 'Mensajes', description: 'Bandeja administrativa', to: '/admin/contact-messages', icon: Mail, state: overview.messages },
-    { key: 'schoolInfo', label: 'Información institucional', description: 'Estado del registro', to: '/admin/school-info', icon: BookOpen, state: overview.schoolInfo },
+    { key: 'events', label: 'Eventos', description: 'Publicados en la página de eventos', to: '/admin/events', icon: CalendarDays, state: { status: 'success', value: String(eventsCount) } },
+    { key: 'gallery', label: 'Galería', description: 'Fotos visibles en la galería', to: '/admin/gallery', icon: Image, state: overview.gallery },
+    { key: 'announcements', label: 'Avisos', description: 'Avisos visibles en la portada', to: '/admin/announcements', icon: Megaphone, state: overview.announcements },
+    { key: 'documents', label: 'Documentos', description: 'Documentos que las familias pueden bajar', to: '/admin/documents', icon: FileText, state: overview.documents },
+    { key: 'messages', label: 'Mensajes', description: 'Consultas recibidas por el formulario', to: '/admin/contact-messages', icon: Mail, state: overview.messages },
+    { key: 'schoolInfo', label: 'Información institucional', description: 'Nombre, contacto, misión y portada', to: '/admin/school-info', icon: BookOpen, state: overview.schoolInfo },
   ]
 
   return (
@@ -86,7 +86,22 @@ export function AdminOverview({ eventsCount }: AdminOverviewProps) {
             </div>
             <div style={{ fontSize: '14px', fontWeight: 700, marginBottom: '4px' }}>{label}</div>
             <div style={{ fontSize: '12px', color: '#5A7A5A' }}>{description}</div>
-            <div aria-live="polite" style={{ marginTop: '12px', fontSize: '24px', fontWeight: 800, color: state.status === 'error' ? '#991B1B' : '#006400' }}>
+            <div
+              aria-live="polite"
+              style={{
+                marginTop: '12px',
+                fontSize: '24px',
+                fontWeight: 800,
+                // Un 0 o un "Sin registro" no es un estado bueno: pintarlo de
+                // verde hace creer que todo esta bien cuando en realidad no
+                // hay nada cargado.
+                color: state.status === 'error'
+                  ? '#991B1B'
+                  : state.status === 'success' && (state.value === '0' || state.value === 'Sin registro')
+                    ? '#9CA3AF'
+                    : '#006400',
+              }}
+            >
               {state.status === 'loading' ? '...' : state.status === 'error' ? 'Error' : state.value}
             </div>
           </button>

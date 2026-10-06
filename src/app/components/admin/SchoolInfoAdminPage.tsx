@@ -9,6 +9,7 @@ import * as schoolInfoService from '../../../services/schoolInfo.service'
 import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-helpers'
 import { logError } from '../../../lib/logger'
 import { validateImageFile, toStoragePath, deleteFromStorage, resolveAssetUrl } from '../../../lib/storage'
+import { AutoTextarea } from './AutoTextarea'
 import { ResilientImage } from '../ui/ResilientImage'
 
 
@@ -259,50 +260,81 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#1A1A1A', marginBottom: '16px' }}>Datos básicos</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Nombre del colegio *</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Nombre del colegio <span title="Obligatorio" style={{ color: '#C0392B' }}>*</span></label>
                   <input type="text" value={formData.school_name} onChange={e => updateField('school_name', e.target.value)} placeholder="Ej: Colegio José Celestino Mutis" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>Es el único campo obligatorio. Aparece en el encabezado, el pie de página y los títulos del navegador.</p>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título del Hero</label>
-                  <input type="text" value={formData.hero_title} onChange={e => updateField('hero_title', e.target.value)} placeholder="Ej: Educando para Transformar el Futuro" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Título de la portada</label>
+                  <input type="text" value={formData.hero_title} onChange={e => updateField('hero_title', e.target.value)} placeholder="Ej: Colegio José Celestino Mutis" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>La frase grande de la imagen de portada, en la página de inicio. Si queda vacío se usa el nombre del colegio.</p>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Subtítulo del Hero</label>
-                  <input type="text" value={formData.hero_subtitle} onChange={e => updateField('hero_subtitle', e.target.value)} placeholder="Ej: Formando el talento de la Amazonía" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Frase destacada de la portada</label>
+                  <input type="text" value={formData.hero_subtitle} onChange={e => updateField('hero_subtitle', e.target.value)} placeholder="Ej: Transformar el futuro" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>Se muestra en verde, debajo del título. Si queda vacío se usa "Transformar".</p>
                 </div>
                 <div>
-                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Estado del badge</label>
-                   <div style={{ display: 'flex', gap: '12px' }}>
-                     {(['abierto', 'cerrado'] as BadgeState[]).map(state => {
-                       const bs = BADGE_STATES[state]
-                       return (
-                         <button
-                           key={state}
-                           type="button"
-                           onClick={() => {
-                             updateField('hero_badge', bs.text)
-                             updateField('hero_badge_color', bs.color)
-                           }}
-                           style={{
-                             flex: 1,
-                             padding: '10px 16px',
-                             borderRadius: '8px',
-                             border: formData.hero_badge === bs.text ? '2px solid #1A1A1A' : '2px solid rgba(0,0,0,0.1)',
-                             backgroundColor: bs.bg,
-                             color: '#FFFFFF',
-                             fontSize: '13px',
-                             fontWeight: 600,
-                             cursor: 'pointer',
-                             fontFamily: 'inherit',
-                             transition: 'all 0.2s',
-                           }}
-                         >
-                           {bs.label}
-                         </button>
-                       )
-                     })}
-                   </div>
-                 </div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '6px' }}>Estado de las inscripciones</label>
+                  <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#6B7280', lineHeight: 1.55 }}>
+                    Define la etiqueta que aparece en la portada del sitio, arriba de todo. Úsalo para avisar si las inscripciones están abiertas o cerradas.
+                  </p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {(['abierto', 'cerrado'] as BadgeState[]).map(state => {
+                      const bs = BADGE_STATES[state]
+                      const activo = formData.hero_badge === bs.text
+                      return (
+                        <button
+                          key={state}
+                          type="button"
+                          aria-pressed={activo}
+                          onClick={() => {
+                            updateField('hero_badge', bs.text)
+                            updateField('hero_badge_color', bs.color)
+                          }}
+                          style={{
+                            flex: '1 1 160px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '9px',
+                            padding: '11px 14px',
+                            borderRadius: '9px',
+                            border: activo ? `2px solid ${bs.color}` : '2px solid rgba(0,0,0,0.1)',
+                            backgroundColor: activo ? bs.bg : '#FFFFFF',
+                            color: '#1A1A1A',
+                            fontSize: '13px',
+                            fontWeight: activo ? 700 : 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            transition: 'all 0.2s',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {/* Antes el punto era casi invisible: blanco sobre fondo
+                              claro. Ahora usa el color real del estado. */}
+                          <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: bs.color, flexShrink: 0 }} />
+                          <span>{bs.label}</span>
+                          {activo && <span style={{ marginLeft: 'auto', fontSize: '11px', color: bs.color, fontWeight: 700 }}>Actual</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Vista previa de lo que se vera en la portada. Antes solo
+                      habia que confiar en que el texto signifique algo.
+                      El fondo replica el gradiente real del hero: si se
+                      pusiera claro aqui, el texto blanco del badge seria
+                      invisible igual que en el toggle. */}
+                  <div style={{ marginTop: '12px', padding: '18px', borderRadius: '9px', background: 'linear-gradient(140deg, rgba(0,30,0,0.96) 0%, rgba(0,80,0,0.72) 55%, rgba(0,40,0,0.88) 100%)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                      Así se verá en la portada
+                    </div>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '24px', padding: '8px 18px', color: '#FFFFFF', fontSize: '13px' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: formData.hero_badge_color || '#006400' }} />
+                      {formData.hero_badge || 'Sin etiqueta'}
+                    </span>
+                  </div>
+                </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Dirección</label>
                   <input type="text" value={formData.address} onChange={e => updateField('address', e.target.value)} placeholder="Dirección de la sede" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
@@ -354,11 +386,28 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Misión</label>
-                  <textarea value={formData.mission} onChange={e => updateField('mission', e.target.value)} placeholder="Misión del colegio..." rows={4} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+                  <AutoTextarea
+                    value={formData.mission}
+                    onChange={v => updateField('mission', v)}
+                    placeholder="Misión del colegio..."
+                    minRows={5}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    inputStyle={inputStyle}
+                  />
+                  <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>Se muestra en la página Sobre Nosotros. Crece solo para que no quede texto cortado.</p>
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Visión</label>
-                  <textarea value={formData.vision} onChange={e => updateField('vision', e.target.value)} placeholder="Visión del colegio..." rows={4} style={{ ...inputStyle, resize: 'vertical' }} onFocus={handleFocus} onBlur={handleBlur} />
+                  <AutoTextarea
+                    value={formData.vision}
+                    onChange={v => updateField('vision', v)}
+                    placeholder="Visión del colegio..."
+                    minRows={5}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    inputStyle={inputStyle}
+                  />
                 </div>
               </div>
             </div>
@@ -391,7 +440,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
                   )}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen principal (Hero)</label>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Imagen de la portada</label>
                   <input ref={heroInputRef} type="file" accept={IMAGE_INPUT_ACCEPT} onChange={handleMediaSelect('hero_image_url')} style={{ display: 'none' }} />
                   <button
                     type="button"

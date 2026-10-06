@@ -4,8 +4,9 @@ import { Eye, Plus } from 'lucide-react'
 export interface AdminHeaderProps {
   title: string
   subtitle?: string
-  primaryButtonText: string
-  onPrimaryAction: () => void
+  /** Si falta, no se dibuja el boton: un boton sin accion solo confunde. */
+  primaryButtonText?: string
+  onPrimaryAction?: () => void
   onViewSite: () => void
 }
 
@@ -29,14 +30,16 @@ export function AdminHeader({
         >
           <Eye size={14} /> Ver sitio
         </button>
-        <button
-          onClick={onPrimaryAction}
-          style={{ display: 'flex', alignItems: 'center', gap: '7px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '9px 18px', borderRadius: '7px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
-          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
-          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
-        >
-          <Plus size={16} /> {primaryButtonText}
-        </button>
+        {primaryButtonText && onPrimaryAction && (
+          <button
+            onClick={onPrimaryAction}
+            style={{ display: 'flex', alignItems: 'center', gap: '7px', backgroundColor: '#006400', color: '#FFFFFF', border: 'none', padding: '9px 18px', borderRadius: '7px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
+            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#228B22'}
+            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.backgroundColor = '#006400'}
+          >
+            <Plus size={16} /> {primaryButtonText}
+          </button>
+        )}
       </div>
     </div>
   )
