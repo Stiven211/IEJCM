@@ -19,57 +19,98 @@ const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 /**
  * La home carga su contenido de forma asincrona (Supabase + rutas lazy), asi que
  * calcular el offset una sola vez despues de navegar deja al usuario en una
- * posicion incorrecta: el destino todavia no tiene su altura definitiva.
- * Solution: alinear el destino y mantenerlo anclado con un ResizeObserver
- * mientras el documento cambia de altura, y soltar cuando todo esta estable.
+ * posicion incorrecta: las secciones que quedan por encima del destino todavia
+ * no tienen su altura definitiva: crecen despues y empujan el destino.
+ *
+ * Antes se resolvia con un ResizeObserver que se rendia a los 600ms de
+ * inactividad. Si los datos tardaban mas, el observer ya estaba desconectado
+ * cuando llegaban y el destino quedaba corrido.
+ *
+ * Ahora son tres fases explicitas:
+ *   1. espera     -> el destino aun no esta en el DOM
+ *   2. animacion  -> un unico scroll suave, el que percibe el usuario
+ *   3. correccion -> mientras el layout siga creciendo, ajustes instantaneos y
+ *                    silenciosos. Se espera a que termine la animacion para no
+ *                    cancelarse entre si.
+ *
+ * El ajuste instantaneo es a proposito: globals.css pone html { scroll-behavior:
+ * smooth }, asi que un scrollBy normal seria otra animacion y nunca alcanzaria
+ * el destino. El usuario solo ve la de la fase 2.
  */
-function scrollToSectionWhenSettled(hash: string, quietMs = 600, maxMs = 4000) {
+type HashScrollPhase = 'espera' | 'animacion' | 'correccion'
+
+function scrollToSectionWhenSettled(hash: string, quietMs = 500, maxMs = 9000) {
   const started = Date.now()
-  let observer: ResizeObserver | null = null
-  let settleTimer: number | undefined
   let raf = 0
+  let phase: HashScrollPhase = 'espera'
+  let lastScrollY = window.scrollY
+  let lastTop: number | null = null
+  let stableSince = Date.now()
 
-  const align = (behavior: ScrollBehavior) => {
-    const target = document.getElementById(hash)
-    if (target) target.scrollIntoView({ behavior, block: 'start' })
-  }
+  const stop = () => cancelAnimationFrame(raf)
 
-  const stop = () => {
-    observer?.disconnect()
-    observer = null
-    window.clearTimeout(settleTimer)
-    cancelAnimationFrame(raf)
-  }
-
-  const scheduleStop = () => {
-    window.clearTimeout(settleTimer)
-    settleTimer = window.setTimeout(stop, quietMs)
-  }
-
-  const watch = () => {
+  const tick = () => {
     if (Date.now() - started > maxMs) {
       stop()
       return
     }
 
-    if (!document.getElementById(hash)) {
-      raf = requestAnimationFrame(watch)
+    const target = document.getElementById(hash)
+    if (!target) {
+      raf = requestAnimationFrame(tick)
       return
     }
 
-    if (!observer) {
-      observer = new ResizeObserver(() => {
-        align('smooth')
-        scheduleStop()
-      })
-      observer.observe(document.body)
+    const top = target.getBoundingClientRect().top
+
+    if (phase === 'espera') {
+      phase = 'animacion'
+      lastScrollY = window.scrollY
+      stableSince = Date.now()
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      raf = requestAnimationFrame(tick)
+      return
     }
 
-    align('smooth')
-    scheduleStop()
+    if (phase === 'animacion') {
+      // No corregir mientras el scroll suave sigue en marcha.
+      const y = window.scrollY
+      if (Math.abs(y - lastScrollY) > 1) {
+        lastScrollY = y
+        stableSince = Date.now()
+      }
+      if (Date.now() - stableSince >= 250) {
+        phase = 'correccion'
+        lastTop = target.getBoundingClientRect().top
+        stableSince = Date.now()
+      }
+      raf = requestAnimationFrame(tick)
+      return
+    }
+
+    // El destino se movio: llego contenido de las secciones de arriba.
+    if (lastTop !== null && Math.abs(top - lastTop) > 1) {
+      lastTop = top
+      stableSince = Date.now()
+    }
+
+    if (Math.abs(top) > 1) {
+      window.scrollBy({ top, behavior: 'instant' as ScrollBehavior })
+      lastTop = 0
+      stableSince = Date.now()
+      raf = requestAnimationFrame(tick)
+      return
+    }
+
+    if (Date.now() - stableSince >= quietMs) {
+      stop()
+      return
+    }
+
+    raf = requestAnimationFrame(tick)
   }
 
-  raf = requestAnimationFrame(watch)
+  raf = requestAnimationFrame(tick)
 }
 
 export function Navbar() {
