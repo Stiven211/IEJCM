@@ -44,7 +44,7 @@ export function HomePage() {
   const timerRef = useRef<number | null>(null)
 
   const schoolName = schoolInfo?.school_name || 'Colegio José Celestino Mutis'
-  const heroImage = schoolInfo?.hero_image_url || 'https://images.unsplash.com/photo-1553777907-f5dbbbb44d7c?w=1920&h=1080&fit=crop&auto=format'
+  const heroImage = schoolInfo?.hero_image_url || 'https://marandua.com.co/rector-desmintio-exigencia-de-elementos-de-bioseguridad-a-estudiantes/'
   const heroTitle = schoolInfo?.hero_title || ''
   const heroSubtitle = schoolInfo?.hero_subtitle || ''
   const history = schoolInfo?.history || ''

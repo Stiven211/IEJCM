@@ -17,100 +17,126 @@ const NAV_LINKS = [
 const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 /**
- * La home carga su contenido de forma asincrona (Supabase + rutas lazy), asi que
- * calcular el offset una sola vez despues de navegar deja al usuario en una
- * posicion incorrecta: las secciones que quedan por encima del destino todavia
- * no tienen su altura definitiva: crecen despues y empujan el destino.
+ * Lleva la vista a una seccion de la home (`/#galeria`, `/#avisos`, ...)
+ * incluso cuando se llega desde otra ruta.
  *
- * Antes se resolvia con un ResizeObserver que se rendia a los 600ms de
- * inactividad. Si los datos tardaban mas, el observer ya estaba desconectado
- * cuando llegaban y el destino quedaba corrido.
+ * El problema: la home arma su alto despues de que empiezan a llegar los
+ * datos de Supabase, asi que las secciones que quedan por encima del destino
+ * crecen cuando ya se calculo el offset y empujan el destino.
  *
- * Ahora son tres fases explicitas:
- *   1. espera     -> el destino aun no esta en el DOM
- *   2. animacion  -> un unico scroll suave, el que percibe el usuario
- *   3. correccion -> mientras el layout siga creciendo, ajustes instantaneos y
- *                    silenciosos. Se espera a que termine la animacion para no
- *                    cancelarse entre si.
+ * La version anterior de esto usaba un bucle con requestAnimationFrame que
+ * corrigia la posicion en cada frame. Parecia funcionar pero congelaba la
+ * pagina: si el destino no era alcanzable por tope del documento, la
+ * correccion nunca convergia y el bucle scrolleaba al usuario durante 9
+ * segundos, sin dejarle desplazar ni arriba ni abajo.
  *
- * El ajuste instantaneo es a proposito: globals.css pone html { scroll-behavior:
- * smooth }, asi que un scrollBy normal seria otra animacion y nunca alcanzaria
- * el destino. El usuario solo ve la de la fase 2.
+* Ahora son tres pasos con tres salidas de emergencia:
+ *   - un unico scroll suave (el unico que el usuario percibe)
+ *   - se espera a que la home deje de crecer, y solo entonces se corrige
+ *   - se aborta si el usuario scrollea a mano, si no se puede avanzar mas, o
+ *     si se agotan los intentos. Nunca se bloquea la pagina.
+ *
+ * La correccion respeta el scroll-margin-top del elemento (70px en
+ * globals.css), para no dejar el titulo de la seccion debajo del header fijo.
  */
-type HashScrollPhase = 'espera' | 'animacion' | 'correccion'
+function scrollToSectionWhenSettled(hash: string) {
+  const MAX_MS = 9000
+  const QUIET_MS = 600
+  const STEP = 120
 
-function scrollToSectionWhenSettled(hash: string, quietMs = 500, maxMs = 9000) {
-  const started = Date.now()
-  let raf = 0
-  let phase: HashScrollPhase = 'espera'
-  let lastScrollY = window.scrollY
-  let lastTop: number | null = null
-  let stableSince = Date.now()
+  let finished = false
+  let timer: number | undefined
 
-  const stop = () => cancelAnimationFrame(raf)
+  // Cortafuegos 1: si el usuario toca el scroll, se cancela todo. Antes que
+  // acertar el pixel exacto, no bloquearle la pagina.
+  const onUserInput = () => cancel()
 
-  const tick = () => {
-    if (Date.now() - started > maxMs) {
-      stop()
-      return
-    }
-
-    const target = document.getElementById(hash)
-    if (!target) {
-      raf = requestAnimationFrame(tick)
-      return
-    }
-
-    const top = target.getBoundingClientRect().top
-
-    if (phase === 'espera') {
-      phase = 'animacion'
-      lastScrollY = window.scrollY
-      stableSince = Date.now()
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      raf = requestAnimationFrame(tick)
-      return
-    }
-
-    if (phase === 'animacion') {
-      // No corregir mientras el scroll suave sigue en marcha.
-      const y = window.scrollY
-      if (Math.abs(y - lastScrollY) > 1) {
-        lastScrollY = y
-        stableSince = Date.now()
-      }
-      if (Date.now() - stableSince >= 250) {
-        phase = 'correccion'
-        lastTop = target.getBoundingClientRect().top
-        stableSince = Date.now()
-      }
-      raf = requestAnimationFrame(tick)
-      return
-    }
-
-    // El destino se movio: llego contenido de las secciones de arriba.
-    if (lastTop !== null && Math.abs(top - lastTop) > 1) {
-      lastTop = top
-      stableSince = Date.now()
-    }
-
-    if (Math.abs(top) > 1) {
-      window.scrollBy({ top, behavior: 'instant' as ScrollBehavior })
-      lastTop = 0
-      stableSince = Date.now()
-      raf = requestAnimationFrame(tick)
-      return
-    }
-
-    if (Date.now() - stableSince >= quietMs) {
-      stop()
-      return
-    }
-
-    raf = requestAnimationFrame(tick)
+  const cancel = () => {
+    if (finished) return
+    finished = true
+    if (timer !== undefined) window.clearTimeout(timer)
+    window.removeEventListener('wheel', onUserInput)
+    window.removeEventListener('touchstart', onUserInput)
+    window.removeEventListener('keydown', onUserInput)
   }
 
-  raf = requestAnimationFrame(tick)
+  window.addEventListener('wheel', onUserInput, { passive: true })
+  window.addEventListener('touchstart', onUserInput, { passive: true })
+  window.addEventListener('keydown', onUserInput)
+
+  const marginOf = (el: Element) => {
+    const value = parseFloat(getComputedStyle(el).scrollMarginTop || '0')
+    return Number.isFinite(value) ? value : 0
+  }
+
+  const wait = (ms: number) =>
+    new Promise<void>(resolve => {
+      timer = window.setTimeout(resolve, ms)
+    })
+
+  const run = async () => {
+    const started = Date.now()
+
+    // Paso 1: esperar a que la ruta lazy renderice la seccion destino.
+    let target: HTMLElement | null = null
+    while (!target && Date.now() - started < 4000) {
+      target = document.getElementById(hash)
+      if (!target) await wait(100)
+    }
+    if (!target || finished) return cancel()
+
+// Paso 2: el unico scroll suave, el que percibe el usuario.
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+
+    // Ventana de calma antes de empezar a sondear. El scroll suave necesita
+    // frames del compositor, y el bucle de sondeo compite por el hilo
+    // principal: medir desde el primer frame lo deja sin frames y se ve como
+    // un salto seco. 450ms es lo que tarda el scroll suave en completarse.
+    await wait(450)
+
+    // Paso 3: esperar a que el layout se estabilice y ajustar si quedo corrido.
+    let previousTop = target.getBoundingClientRect().top
+    let quietSince = Date.now()
+    let corrections = 0
+
+    while (Date.now() - started < MAX_MS && corrections < 3 && !finished) {
+      await wait(STEP)
+
+      const element = document.getElementById(hash)
+      if (!element) break
+
+      const top = element.getBoundingClientRect().top
+
+      // El destino se movio: sigue llegando contenido de arriba. Se sigue
+      // esperando. Esto tambien cubre el scroll suave en curso.
+      if (Math.abs(top - previousTop) > 1) {
+        previousTop = top
+        quietSince = Date.now()
+        continue
+      }
+
+      if (Date.now() - quietSince < QUIET_MS) continue
+
+      const expected = marginOf(element)
+      const offset = top - expected
+      if (Math.abs(offset) <= 2) break
+
+      const before = window.scrollY
+      window.scrollBy({ top: offset, behavior: 'instant' as ScrollBehavior })
+      corrections++
+
+      // Cortafuegos 2: la pagina no se movio, estamos en el tope del documento.
+      // No hay nada mas que ajustar y seguir insistiendo congelaria al usuario.
+      if (Math.abs(window.scrollY - before) < 1) break
+
+      previousTop = expected
+      quietSince = Date.now()
+    }
+
+    cancel()
+  }
+
+  void run()
 }
 
 export function Navbar() {
