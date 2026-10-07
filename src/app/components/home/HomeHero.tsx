@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { ChevronDown, ArrowRight } from 'lucide-react'
 import { HeroSkeleton } from '../ui/HeroSkeleton'
 import { ResilientImage } from '../ui/ResilientImage'
@@ -36,16 +36,35 @@ export const HomeHero = memo(function HomeHero({
 }: HomeHeroProps) {
   const description = history || heroSubtitle || aboutText
 
+  // El contenido no puede depender solo de heroLoaded, que lo dispara el
+  // onLoad de la foto. Sin conexion hay dos formas de quedarse invisible:
+  //   - no hay imagen configurada: nunca hay onLoad
+  //   - la URL viene de la cache de sessionStorage pero la foto no carga:
+  //     tampoco hay onLoad, hay onError
+  const [imagenFallida, setImagenFallida] = useState(false)
+  const contenidoVisible = heroLoaded || imagenFallida || !heroImage
+
   return (
-    <section id="inicio" style={{ position: 'relative', minHeight: '90vh', display: 'flex', alignItems: 'center', overflow: 'hidden', backgroundColor: '#002200' }}>
-      <ResilientImage
-        src={heroImage}
-        alt={schoolName}
-        fallbackLabel="Imagen principal no disponible"
-        decoding="async"
-        fetchPriority="high"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.68 }}
-      />
+    <section id="inicio" aria-label={schoolName} style={{ position: 'relative', minHeight: '90vh', display: 'flex', alignItems: 'center', overflow: 'hidden', backgroundColor: '#002200' }}>
+      {/* Si no hay imagen configurada no se dibuja nada: el fondo verde del
+          contenedor y los velos de abajo ya forman el hero. Antes se caia a
+          una foto de Unsplash de un casino, que sin conexion era lo unico que
+          se veia.
+
+          Si hay URL pero la foto no carga, el fallback de ResilientImage
+          tambien tiene que ser invisible: su caja verde clara tapaba el hero. */}
+      {heroImage && (
+        <ResilientImage
+          src={heroImage}
+          alt=""
+          fallbackLabel=""
+          fallbackStyle={{ backgroundColor: 'transparent', minHeight: 0 }}
+          onError={() => setImagenFallida(true)}
+          decoding="async"
+          fetchPriority="high"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.68 }}
+        />
+      )}
       {/* Dos velos superpuestos, no uno opaco.
           Antes: imagen en opacity 0.32 + gradiente de 0.72-0.96 => la foto
           quedaba al 3-9% de visibilidad y el hero se veía como un verde solido.
@@ -58,7 +77,7 @@ export const HomeHero = memo(function HomeHero({
           pixeles compuestos, no estimado. */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,24,0,0.78) 0%, rgba(0,24,0,0.48) 32%, rgba(0,24,0,0.82) 100%), linear-gradient(100deg, rgba(0,22,0,0.94) 0%, rgba(0,22,0,0.86) 38%, rgba(0,22,0,0.62) 70%, rgba(0,22,0,0.42) 100%)' }} />
 
-      <div style={{ position: 'relative', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(80px,10vw,120px) 24px clamp(60px,8vw,80px)', color: '#FFFFFF', opacity: heroLoaded ? 1 : 0, transition: 'opacity 0.5s ease' }}>
+      <div style={{ position: 'relative', maxWidth: '1280px', margin: '0 auto', padding: 'clamp(80px,10vw,120px) 24px clamp(60px,8vw,80px)', color: '#FFFFFF', opacity: contenidoVisible ? 1 : 0, transition: 'opacity 0.5s ease' }}>
         <div className="fade-in-up" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: '24px', padding: '8px 18px', marginBottom: '28px', backdropFilter: 'blur(6px)', animationDelay: '100ms' }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', boxShadow: '0 0 8px ' + heroBadgeColor, backgroundColor: heroBadgeColor }} />
           <span style={{ fontSize: '13px', letterSpacing: '0.04em', color: '#FFFFFF' }}>{heroBadge}</span>
@@ -107,7 +126,7 @@ export const HomeHero = memo(function HomeHero({
         aria-label="Desplazar hacia abajo"
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onScrollToAbout() } }}
         className="fade-in-up"
-        style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', color: 'rgba(255,255,255,0.38)', cursor: 'pointer', opacity: heroLoaded ? 1 : 0, transition: 'opacity 0.5s ease', animationDelay: '400ms', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
+        style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', color: 'rgba(255,255,255,0.38)', cursor: 'pointer', opacity: contenidoVisible ? 1 : 0, transition: 'opacity 0.5s ease', animationDelay: '400ms', background: 'none', border: 'none', padding: 0, fontFamily: 'inherit' }}
       >
         <span style={{ fontSize: '10px', letterSpacing: '0.12em' }}>DESPLAZAR</span>
         <ChevronDown size={17} />

@@ -44,7 +44,11 @@ export function HomePage() {
   const timerRef = useRef<number | null>(null)
 
   const schoolName = schoolInfo?.school_name || 'Colegio José Celestino Mutis'
-  const heroImage = schoolInfo?.hero_image_url || 'https://marandua.com.co/rector-desmintio-exigencia-de-elementos-de-bioseguridad-a-estudiantes/'
+  // Sin imagen de portada el hero usa su propio fondo verde (HomeHero).
+  // Antes caia a una foto de Unsplash de un casino: sin conexion, school_info
+  // no carga y el visitante del colegio veia una mesa de juego de fondo. Y al
+  // ser una URL remota, tampoco cargaba sin internet.
+  const heroImage = schoolInfo?.hero_image_url || ''
   const heroTitle = schoolInfo?.hero_title || ''
   const heroSubtitle = schoolInfo?.hero_subtitle || ''
   const history = schoolInfo?.history || ''
@@ -125,7 +129,13 @@ export function HomePage() {
         setHeroDataReady(true)
 
         if (errors.length > 0) {
-          setLoadError(`No se pudo cargar: ${errors.join(', ')}.`)
+          // El detalle de que modulos fallaron va al log, no a pantalla:
+          // el aviso al visitante es generico (ver el banner de arriba).
+          logError(new Error(`Secciones con fallo: ${errors.join(', ')}`), {
+            action: 'loadHomeData',
+            sections: errors,
+          })
+          setLoadError('contenido incompleto')
         }
       } catch (err) {
         setHeroDataReady(true)
@@ -186,10 +196,26 @@ export function HomePage() {
 
   return (
     <div>
+      {/* Aviso de contenido incompleto.
+
+        Antes se renderizaba con marginBottom: '-16px', o sea encima del hero,
+        y decia "No se pudo cargar: eventos, galería, avisos, información
+        institucional", que es vocabulario interno: un padre no sabe que son
+        "eventos" ni "avisos".
+
+        Ahora va sobre el hero sin superponerse, con un mensaje entendible y
+        un boton para reintentar. OfflineBanner cubre el caso sin conexion,
+        que es el motivo mas comun. */}
       {loadError && (
-        <div style={{ backgroundColor: '#FEF2F2', border: '1px solid rgba(220,38,38,0.25)', borderRadius: '8px', padding: '12px 16px', margin: '0 auto', maxWidth: '1280px', marginTop: '16px', marginBottom: '-16px', color: '#DC2626', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span>⚠️ {loadError}</span>
-          <button onClick={() => setLoadError(null)} style={{ background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: '16px', fontWeight: 700 }}>×</button>
+        <div style={{ backgroundColor: '#FFF7ED', borderBottom: '1px solid rgba(180,83,9,0.18)', padding: '10px 20px', color: '#7C2D12', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <span>No pudimos cargar toda la información del colegio.</span>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ background: 'none', border: '1px solid rgba(180,83,9,0.35)', borderRadius: '6px', color: '#7C2D12', cursor: 'pointer', padding: '4px 12px', fontSize: '13px', fontWeight: 600, fontFamily: 'inherit' }}
+          >
+            Reintentar
+          </button>
+          <button onClick={() => setLoadError(null)} aria-label="Cerrar aviso" style={{ background: 'none', border: 'none', color: '#7C2D12', cursor: 'pointer', fontSize: '17px', lineHeight: 1, padding: '0 2px', fontFamily: 'inherit' }}>×</button>
         </div>
       )}
 

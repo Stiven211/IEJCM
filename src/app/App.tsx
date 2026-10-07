@@ -11,6 +11,7 @@ import { AdminLogin } from './components/AdminLogin'
 import { DocumentsPage } from './components/DocumentsPage'
 import { NotFoundPage } from './components/NotFoundPage'
 import { ScrollToTop } from './components/ScrollToTop'
+import { OfflineBanner } from './components/OfflineBanner'
 import { supabase } from '../lib/supabase'
 import { useIsAdmin } from '../hooks/useIsAdmin'
 
@@ -106,6 +107,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={<Layout><HomePage /></Layout>} />
         <Route path="/eventos" element={<Layout><EventsPage /></Layout>} />
