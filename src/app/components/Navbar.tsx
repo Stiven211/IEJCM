@@ -17,39 +17,41 @@ const NAV_LINKS = [
 const TRANSITION = 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)'
 
 /**
- * Lleva la vista a una seccion de la home (`/#galeria`, `/#avisos`, ...)
- * incluso cuando se llega desde otra ruta.
+ * Lleva la vista a una seccion de la home (#galeria, #avisos, ...) incluso
+ * cuando se llega desde otra ruta.
  *
  * El problema: la home arma su alto despues de que empiezan a llegar los
  * datos de Supabase, asi que las secciones que quedan por encima del destino
  * crecen cuando ya se calculo el offset y empujan el destino.
  *
- * La version anterior de esto usaba un bucle con requestAnimationFrame que
- * corrigia la posicion en cada frame. Parecia funcionar pero congelaba la
- * pagina: si el destino no era alcanzable por tope del documento, la
- * correccion nunca convergia y el bucle scrolleaba al usuario durante 9
- * segundos, sin dejarle desplazar ni arriba ni abajo.
+ * La primera version corrigia la posicion con un bucle de requestAnimationFrame.
+ * Congelaba la pagina: si el destino no era alcanzable por tope del documento
+ * nunca convergia y el bucle scrolleaba al usuario durante 9 segundos.
  *
-* Ahora son tres pasos con tres salidas de emergencia:
- *   - un unico scroll suave (el unico que el usuario percibe)
- *   - se espera a que la home deje de crecer, y solo entonces se corrige
- *   - se aborta si el usuario scrollea a mano, si no se puede avanzar mas, o
- *     si se agotan los intentos. Nunca se bloquea la pagina.
+ * La segunda esperaba y luego corregia con scrollBy instantaneo. Ya no
+ * congelaba, pero perdia la animacion: el ajuste instantaneo cancelaba el
+ * scroll suave y ademas competia con el por el hilo principal.
  *
- * La correccion respeta el scroll-margin-top del elemento (70px en
- * globals.css), para no dejar el titulo de la seccion debajo del header fijo.
+ * Ahora es al reves: se espera a que la home se estabilice y se hace UN solo
+ * scroll suave. Sin correcciones instantaneas, sin saltos, y la animacion no
+ * tiene contra que pelear porque no hay nada moviendose al mismo tiempo.
+ *
+ * Si pese a eso quedara corrido, se repite el scroll suave una vez, nunca un
+ * salto instantaneo: eso era justo lo que se veia mal.
+ *
+ * Salidas de emergencia: si el usuario scrollea a mano se cancela todo, y
+ * hay topes de tiempo y de espera. Antes que acertar el pixel exacto, no
+ * bloquearle la pagina.
  */
 function scrollToSectionWhenSettled(hash: string) {
-  const MAX_MS = 9000
-  const QUIET_MS = 600
-  const STEP = 120
+  const TARGET_WAIT = 8000
+  const SETTLE_WAIT = 2000
+  const QUIET = 250
+  const POLL = 80
+  const ATTEMPTS = 3
 
   let finished = false
   let timer: number | undefined
-
-  // Cortafuegos 1: si el usuario toca el scroll, se cancela todo. Antes que
-  // acertar el pixel exacto, no bloquearle la pagina.
-  const onUserInput = () => cancel()
 
   const cancel = () => {
     if (finished) return
@@ -60,77 +62,70 @@ function scrollToSectionWhenSettled(hash: string) {
     window.removeEventListener('keydown', onUserInput)
   }
 
+  const onUserInput = () => cancel()
+
   window.addEventListener('wheel', onUserInput, { passive: true })
   window.addEventListener('touchstart', onUserInput, { passive: true })
   window.addEventListener('keydown', onUserInput)
-
-  const marginOf = (el: Element) => {
-    const value = parseFloat(getComputedStyle(el).scrollMarginTop || '0')
-    return Number.isFinite(value) ? value : 0
-  }
 
   const wait = (ms: number) =>
     new Promise<void>(resolve => {
       timer = window.setTimeout(resolve, ms)
     })
 
-  const run = async () => {
+  const scrollSuave = () => {
+    document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+const run = async () => {
     const started = Date.now()
 
-    // Paso 1: esperar a que la ruta lazy renderice la seccion destino.
+    // 1. esperar a que la ruta lazy renderice la seccion destino. Presupuesto
+    //    propio y generoso: si la seccion no aparece nunca, antes se cancelaba
+    //    en silencio y el click no hacia nada, que era el peor fallo posible.
     let target: HTMLElement | null = null
-    while (!target && Date.now() - started < 4000) {
+    while (!target && Date.now() - started < TARGET_WAIT) {
       target = document.getElementById(hash)
       if (!target) await wait(100)
     }
     if (!target || finished) return cancel()
 
-// Paso 2: el unico scroll suave, el que percibe el usuario.
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
-    // Ventana de calma antes de empezar a sondear. El scroll suave necesita
-    // frames del compositor, y el bucle de sondeo compite por el hilo
-    // principal: medir desde el primer frame lo deja sin frames y se ve como
-    // un salto seco. 450ms es lo que tarda el scroll suave en completarse.
-    await wait(450)
-
-    // Paso 3: esperar a que el layout se estabilice y ajustar si quedo corrido.
-    let previousTop = target.getBoundingClientRect().top
+    // 2. esperar a que la home deje de crecer. Es lo que hace que el scroll
+    //    suave no se cancele: no hay nada mas moviendose al mismo tiempo. El
+    //    presupuesto corre desde que el destino existe, no desde el click.
+    const settleStarted = Date.now()
+    let previousTop: number | null = null
     let quietSince = Date.now()
-    let corrections = 0
-
-    while (Date.now() - started < MAX_MS && corrections < 3 && !finished) {
-      await wait(STEP)
-
+    while (Date.now() - settleStarted < SETTLE_WAIT && !finished) {
+      await wait(POLL)
       const element = document.getElementById(hash)
       if (!element) break
 
       const top = element.getBoundingClientRect().top
-
-      // El destino se movio: sigue llegando contenido de arriba. Se sigue
-      // esperando. Esto tambien cubre el scroll suave en curso.
-      if (Math.abs(top - previousTop) > 1) {
+      if (previousTop === null || Math.abs(top - previousTop) > 1) {
         previousTop = top
         quietSince = Date.now()
         continue
       }
+      if (Date.now() - quietSince >= QUIET) break
+    }
+    if (finished) return cancel()
 
-      if (Date.now() - quietSince < QUIET_MS) continue
+    // 3. un scroll suave, y si el destino quedara corrido se repite. Nunca un
+    //    salto instantaneo: eso era justo lo que se veia mal.
+    for (let intento = 0; intento < ATTEMPTS; intento++) {
+      if (finished) return cancel()
 
-      const expected = marginOf(element)
-      const offset = top - expected
-      if (Math.abs(offset) <= 2) break
+      scrollSuave()
+      await wait(900)
+      if (finished) return cancel()
 
-      const before = window.scrollY
-      window.scrollBy({ top: offset, behavior: 'instant' as ScrollBehavior })
-      corrections++
+      const element = document.getElementById(hash)
+      if (!element) break
 
-      // Cortafuegos 2: la pagina no se movio, estamos en el tope del documento.
-      // No hay nada mas que ajustar y seguir insistiendo congelaria al usuario.
-      if (Math.abs(window.scrollY - before) < 1) break
-
-      previousTop = expected
-      quietSince = Date.now()
+      const margin = parseFloat(getComputedStyle(element).scrollMarginTop || '0')
+      const offset = element.getBoundingClientRect().top - (Number.isFinite(margin) ? margin : 0)
+      if (Math.abs(offset) <= 8) break
     }
 
     cancel()
