@@ -11,7 +11,7 @@ import * as galleryService from '../../../services/gallery.service'
 import { logError } from '../../../lib/logger'
 import { validateImageFile, deleteFromStorage, toStoragePath } from '../../../lib/storage'
 import { ResilientImage } from '../ui/ResilientImage'
-import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
+import { mensajeDeError } from '../../lib/adminErrors'
 
 export interface GalleryAdminPageProps {
   onLogout: () => void
@@ -34,7 +34,10 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
-const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+// image/* en vez de una lista cerrada: en Android e iOS una lista muy concreta
+// hace que el selector de archivos no deje elegir la foto de la galeria.
+// El filtro real lo hace validateImageFile, que ademas acepta HEIC.
+const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
 export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps) {
   const navigate = useNavigate()
@@ -176,7 +179,6 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
           ? err.message
           : mensajeDeError(err, 'No se pudo guardar la imagen.'),
       )
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -189,7 +191,6 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
     } catch (err) {
       logError(err, { action: 'deleteGalleryItem' })
       showError(mensajeDeError(err, 'No se pudo eliminar la imagen.'))
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()

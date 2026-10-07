@@ -16,7 +16,8 @@ import {
   normalizarTipoAnnouncement,
   normalizarPrioridadAnnouncement,
 } from '../../data/announcementCategories'
-import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
+import { mensajeDeError } from '../../lib/adminErrors'
+import { aFechaInput } from '../../lib/dateInput'
 
 export interface AnnouncementAdminPageProps {
   onLogout: () => void
@@ -36,8 +37,12 @@ interface FormData {
 const EMPTY_FORM: FormData = {
   title: '',
   description: '',
-  type: '',
-  priority: '',
+  // El estado arranca con los mismos valores que muestra el select. Antes
+  // arrancaba vacio y el select caia a un 'general' de pantalla: se veia
+  // "General" pero al guardar la validacion recibia '' y rechazaba el aviso
+  // con "El tipo "" no es valido".
+  type: 'general',
+  priority: 'media',
   active: true,
   start_date: '',
   end_date: '',
@@ -82,11 +87,11 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
     setFormData({
       title: item.title,
       description: item.description || '',
-      type: item.type || '',
-      priority: item.priority || '',
+      type: item.type || 'general',
+      priority: item.priority || 'media',
       active: item.active !== false,
-      start_date: item.start_date || '',
-      end_date: item.end_date || '',
+      start_date: aFechaInput(item.start_date),
+      end_date: aFechaInput(item.end_date),
     })
     setModalMode('edit')
   }
@@ -98,8 +103,10 @@ const handleSave = async () => {
     try {
       // Se normaliza antes de enviar: el CHECK de Postgres exige minusculas
       // exactas y cualquier otra cosa tumba el INSERT.
-      const tipo = normalizarTipoAnnouncement(formData.type)
-      const prioridad = normalizarPrioridadAnnouncement(formData.priority)
+      // Vacio cae al valor por defecto en vez de rechazarse: el select nunca
+      // deberia mandar '' y, si lo hace, es un fallo de estado, no del dato.
+      const tipo = normalizarTipoAnnouncement(formData.type) ?? 'general'
+      const prioridad = normalizarPrioridadAnnouncement(formData.priority) ?? 'media'
 
       if (!tipo) {
         showError(`El tipo "${formData.type}" no es valido. Elige uno de la lista.`)
@@ -141,7 +148,6 @@ const handleSave = async () => {
       showError(mensajeDeError(err, 'No se pudo guardar el aviso.'))
       // Si lo que fallo fue la sesion, recargar deja al admin en el login con un
       // mensaje claro en vez de un 403 sin explicacion.
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -154,7 +160,6 @@ const handleSave = async () => {
     } catch (err) {
       logError(err, { action: 'deleteAnnouncement' })
       showError(mensajeDeError(err, 'No se pudo eliminar el aviso.'))
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()
@@ -249,7 +254,7 @@ const handleSave = async () => {
               {/* Select y no input de texto: la base solo admite estos valores
                   exactos en minusculas, y escribir "General" hacia fallar el
                   guardado con un error que el panel no explicaba. */}
-              <select value={formData.type || 'general'} onChange={e => updateField('type', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+              <select value={formData.type} onChange={e => updateField('type', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
                 {ANNOUNCEMENT_TYPES.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
@@ -257,7 +262,7 @@ const handleSave = async () => {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Prioridad</label>
-              <select value={formData.priority || 'media'} onChange={e => updateField('priority', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+              <select value={formData.priority} onChange={e => updateField('priority', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
                 {ANNOUNCEMENT_PRIORITIES.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}

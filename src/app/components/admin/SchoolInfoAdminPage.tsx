@@ -69,7 +69,10 @@ type BadgeState = 'abierto' | 'cerrado'
 
 type MediaField = 'logo_url' | 'hero_image_url'
 
-const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+// image/* en vez de una lista cerrada: en Android e iOS una lista muy concreta
+// hace que el selector de archivos no deje elegir la foto de la galeria.
+// El filtro real lo hace validateImageFile, que ademas acepta HEIC.
+const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
 export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPageProps) {
   const navigate = useNavigate()

@@ -23,23 +23,53 @@ const EXPLICACIONES: Record<string, string> = {
   '22001': 'Alguno de los textos es mas largo de lo permitido.',
   '22007': 'El formato de un campo no es valido.',
   '22P02': 'Alguno de los campos de texto no tiene el formato esperado.',
-  '42501': 'Tu sesion expiro. Cierra sesion y vuelve a entrar para volver a guardar.',
-  PGRST301: 'Tu sesion expiro. Cierra sesion y vuelve a entrar para volver a guardar.',
+  '42501': 'Tu sesion expiro. Vuelve a iniciar sesion y guarda de nuevo.',
+  PGRST301: 'Tu sesion expiro. Vuelve a iniciar sesion y guarda de nuevo.',
 }
 
-/** Errores de sesion: en estos casos reintentar con un token nuevo sirve. */
+/**
+ * Errores de sesion.
+ *
+ * Antes, cuando salia esto, la pagina se recargaba sola para dejar al
+ * administrador en el login. Mal idea en un panel lleno de formularios: si
+ * el token se vence a media edicion, la recarga borra el titulo que llevaba
+ * escrito. Ahora solo se avisa, y quien recargue es la persona.
+ */
 export function esErrorDeSesion(err: unknown): boolean {
   const e = err as ErrorLike
   if (!e) return false
-  if (e.code === '42501' || e.code === 'PGRST301') return true
-  const m = (e.message ?? '').toLowerCase()
-  return m.includes('jwt') || m.includes('token') || m.includes('row-level security')
+  return e.code === '42501' || e.code === 'PGRST301'
+}
+
+/**
+ * Se perdio la conexion durante la peticion.
+ *
+ * Sin esto el guardado fallaba en silencio: el administrador veia el aviso
+ * general de "sin conexion", pulsaba Crear y no pasaba nada, con la certeza de
+ * que si se habia guardado. Hay que decirle que el guardado fallo.
+ */
+export function esErrorDeRed(err: unknown): boolean {
+  const e = err as ErrorLike
+  const m = ((e as { message?: string })?.message ?? String(err ?? '')).toLowerCase()
+  return (
+    m.includes('failed to fetch') ||
+    m.includes('network') ||
+    m.includes('fetch failed') ||
+    m.includes('err_internet_disconnected') ||
+    m.includes('load failed')
+  )
 }
 
 /** Mensaje para mostrarle al administrador. Nunca lanza. */
 export function mensajeDeError(err: unknown, fallback: string): string {
   const e = err as ErrorLike
   if (!e) return fallback
+
+  // La red caida se explica antes que nada: es lo unico que el administrador
+  // no puede ver desde el panel.
+  if (esErrorDeRed(err)) {
+    return 'No se pudo guardar porque se perdio la conexion a internet. Revisa los datos y vuelve a intentarlo cuando vuelvas a tener senal.'
+  }
 
   const explicacion = e.code ? EXPLICACIONES[e.code] : undefined
   const base = explicacion ?? fallback

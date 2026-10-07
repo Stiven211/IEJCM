@@ -11,7 +11,8 @@ import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-hel
 import * as documentService from '../../../services/document.service'
 import { logError } from '../../../lib/logger'
 import { getDocumentSignedUrl as getStorageSignedUrl } from '../../../lib/storage'
-import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
+import { mensajeDeError } from '../../lib/adminErrors'
+import { aFechaInput, deFechaInput } from '../../lib/dateInput'
 
 export interface DocumentsAdminPageProps {
   onLogout: () => void
@@ -107,8 +108,8 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       mime_type: item.mime_type,
       file_extension: item.file_extension,
       is_public: item.is_public || false,
-      published_at: item.published_at || '',
-      expires_at: item.expires_at || '',
+      published_at: aFechaInput(item.published_at),
+      expires_at: aFechaInput(item.expires_at),
       file: undefined,
     })
     setModalMode('edit')
@@ -177,8 +178,8 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
             mime_type: formData.mime_type,
             file_extension: formData.file_extension,
             is_public: formData.is_public,
-            published_at: formData.published_at || undefined,
-            expires_at: formData.expires_at || undefined,
+            published_at: deFechaInput(formData.published_at),
+            expires_at: deFechaInput(formData.expires_at),
           },
           formData.file
         )
@@ -189,8 +190,8 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
           description: formData.description,
           category: formData.category,
           is_public: formData.is_public,
-          published_at: formData.published_at || undefined,
-          expires_at: formData.expires_at || undefined,
+          published_at: deFechaInput(formData.published_at),
+          expires_at: deFechaInput(formData.expires_at),
         }
 
         if (formData.file_path && formData.file_path !== editingItem.file_path) {
@@ -209,7 +210,6 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
     } catch (err) {
       logError(err, { action: 'saveDocument' })
       showError(mensajeDeError(err, 'No se pudo guardar el documento.'))
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -222,7 +222,6 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
     } catch (err) {
       logError(err, { action: 'deleteDocument' })
       showError(mensajeDeError(err, 'No se pudo eliminar el documento.'))
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()

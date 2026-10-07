@@ -18,7 +18,8 @@ import { logError } from '../../lib/logger'
 import { validateImageFile, deleteFromStorage, toStoragePath } from '../../lib/storage'
 import { ResilientImage } from './ui/ResilientImage'
 import { AdminOverview } from './admin/AdminOverview'
-import { mensajeDeError, esErrorDeSesion } from '../lib/adminErrors'
+import { mensajeDeError } from '../lib/adminErrors'
+import { aFechaInput } from '../lib/dateInput'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -53,7 +54,10 @@ const EMPTY_FORM: FormData = {
   active: true,
 }
 
-const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp'
+// image/* en vez de una lista cerrada: en Android e iOS una lista muy concreta
+// hace que el selector de archivos no deje elegir la foto de la galeria.
+// El filtro real lo hace validateImageFile, que ademas acepta HEIC.
+const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
 function getStatus(dateStr: string) {
   const now = new Date()
@@ -134,7 +138,7 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
       title: event.title,
       description: event.description,
       fullDescription: event.fullDescription || '',
-      date: event.date,
+      date: aFechaInput(event.date),
       time: event.time,
       endTime: event.endTime || '',
       location: event.location,
@@ -227,7 +231,6 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
           ? err.message
           : mensajeDeError(err, 'No se pudo guardar el evento.'),
       )
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -240,7 +243,6 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
     } catch (err) {
       logError(err, { action: 'deleteEvent' })
       showError(mensajeDeError(err, 'No se pudo eliminar el evento.'))
-      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchEvents()
