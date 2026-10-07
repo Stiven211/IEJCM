@@ -11,6 +11,7 @@ import * as galleryService from '../../../services/gallery.service'
 import { logError } from '../../../lib/logger'
 import { validateImageFile, deleteFromStorage, toStoragePath } from '../../../lib/storage'
 import { ResilientImage } from '../ui/ResilientImage'
+import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
 
 export interface GalleryAdminPageProps {
   onLogout: () => void
@@ -170,7 +171,12 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
       fetchItems()
     } catch (err) {
       logError(err, { action: 'saveGalleryItem' })
-      showError(err instanceof Error ? err.message : 'No se pudo guardar la imagen. Intente de nuevo.')
+      showError(
+        err instanceof SyntaxError
+          ? err.message
+          : mensajeDeError(err, 'No se pudo guardar la imagen.'),
+      )
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -182,7 +188,8 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
       showSuccess('Imagen eliminada correctamente.')
     } catch (err) {
       logError(err, { action: 'deleteGalleryItem' })
-      showError('No se pudo eliminar la imagen. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo eliminar la imagen.'))
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()

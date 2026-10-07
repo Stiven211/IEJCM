@@ -18,6 +18,7 @@ import { logError } from '../../lib/logger'
 import { validateImageFile, deleteFromStorage, toStoragePath } from '../../lib/storage'
 import { ResilientImage } from './ui/ResilientImage'
 import { AdminOverview } from './admin/AdminOverview'
+import { mensajeDeError, esErrorDeSesion } from '../lib/adminErrors'
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -172,6 +173,24 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
   const handleSave = async () => {
     setSaving(true)
     try {
+      // La tabla exige titulo, descripcion, fecha, hora, lugar y categoria.
+      // Antes se mandaba en blanco y Postgres respondia con un 400 que el
+      // panel no explicaba.
+      const faltante = (campo: string, valor: string) => (!valor || !valor.trim() ? campo : null)
+      const problemas = [
+        faltante('el titulo', formData.title),
+        faltante('la descripcion', formData.description),
+        faltante('la fecha', formData.date),
+        faltante('la hora', formData.time),
+        faltante('el lugar', formData.location),
+      ].filter(Boolean)
+
+      if (problemas.length > 0) {
+        showError(`Para guardar el evento falta: ${problemas.join(', ')}.`)
+        setSaving(false)
+        return
+      }
+
       let imagePath = formData.image
 
       if (newFile) {
@@ -203,7 +222,12 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
       fetchEvents()
     } catch (err) {
       logError(err, { action: 'saveEvent' })
-      showError(err instanceof Error ? err.message : 'No se pudo guardar el evento. Intente de nuevo.')
+      showError(
+        err instanceof SyntaxError
+          ? err.message
+          : mensajeDeError(err, 'No se pudo guardar el evento.'),
+      )
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -215,7 +239,8 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
       showSuccess('Evento eliminado correctamente.')
     } catch (err) {
       logError(err, { action: 'deleteEvent' })
-      showError('No se pudo eliminar el evento. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo eliminar el evento.'))
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchEvents()

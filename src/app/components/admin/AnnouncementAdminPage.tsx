@@ -10,6 +10,13 @@ import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-helpers'
 import * as announcementService from '../../../services/announcement.service'
 import { logError } from '../../../lib/logger'
+import {
+  ANNOUNCEMENT_TYPES,
+  ANNOUNCEMENT_PRIORITIES,
+  normalizarTipoAnnouncement,
+  normalizarPrioridadAnnouncement,
+} from '../../data/announcementCategories'
+import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
 
 export interface AnnouncementAdminPageProps {
   onLogout: () => void
@@ -86,37 +93,55 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
 
   const [saving, setSaving] = useState(false)
 
-  const handleSave = async () => {
+const handleSave = async () => {
     setSaving(true)
     try {
+      // Se normaliza antes de enviar: el CHECK de Postgres exige minusculas
+      // exactas y cualquier otra cosa tumba el INSERT.
+      const tipo = normalizarTipoAnnouncement(formData.type)
+      const prioridad = normalizarPrioridadAnnouncement(formData.priority)
+
+      if (!tipo) {
+        showError(`El tipo "${formData.type}" no es valido. Elige uno de la lista.`)
+        setSaving(false)
+        return
+      }
+      if (!prioridad) {
+        showError(`La prioridad "${formData.priority}" no es valida. Elige una de la lista.`)
+        setSaving(false)
+        return
+      }
+      if (!formData.title.trim()) {
+        showError('El aviso necesita un titulo.')
+        setSaving(false)
+        return
+      }
+
+      const payload = {
+        title: formData.title.trim(),
+        description: formData.description,
+        type: tipo,
+        priority: prioridad,
+        active: formData.active,
+        start_date: formData.start_date || undefined,
+        end_date: formData.end_date || undefined,
+      }
+
       if (modalMode === 'create') {
-         await announcementService.createAnnouncement({
-           title: formData.title,
-           description: formData.description,
-           type: formData.type || 'general',
-           priority: formData.priority || 'media',
-           active: formData.active,
-           start_date: formData.start_date || undefined,
-           end_date: formData.end_date || undefined,
-         })
-         showSuccess('Aviso creado exitosamente.')
+        await announcementService.createAnnouncement(payload)
+        showSuccess('Aviso creado exitosamente.')
       } else if (modalMode === 'edit' && editingItem) {
-          await announcementService.updateAnnouncement(editingItem.id, {
-            title: formData.title,
-            description: formData.description,
-            type: formData.type || 'general',
-            priority: formData.priority || 'media',
-            active: formData.active,
-            start_date: formData.start_date || undefined,
-            end_date: formData.end_date || undefined,
-          })
+        await announcementService.updateAnnouncement(editingItem.id, payload)
         showSuccess('Aviso actualizado exitosamente.')
       }
       setModalMode(null)
       fetchItems()
     } catch (err) {
       logError(err, { action: 'saveAnnouncement' })
-      showError('No se pudo guardar el aviso. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo guardar el aviso.'))
+      // Si lo que fallo fue la sesion, recargar deja al admin en el login con un
+      // mensaje claro en vez de un 403 sin explicacion.
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -128,7 +153,8 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
       showSuccess('Aviso eliminado correctamente.')
     } catch (err) {
       logError(err, { action: 'deleteAnnouncement' })
-      showError('No se pudo eliminar el aviso. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo eliminar el aviso.'))
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()
@@ -220,11 +246,22 @@ export function AnnouncementAdminPage({ onLogout, adminUser }: AnnouncementAdmin
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Tipo</label>
-              <input type="text" value={formData.type} onChange={e => updateField('type', e.target.value)} placeholder="Ej: general" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              {/* Select y no input de texto: la base solo admite estos valores
+                  exactos en minusculas, y escribir "General" hacia fallar el
+                  guardado con un error que el panel no explicaba. */}
+              <select value={formData.type || 'general'} onChange={e => updateField('type', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+                {ANNOUNCEMENT_TYPES.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Prioridad</label>
-              <input type="text" value={formData.priority} onChange={e => updateField('priority', e.target.value)} placeholder="Ej: alta" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur} />
+              <select value={formData.priority || 'media'} onChange={e => updateField('priority', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }} onFocus={handleFocus} onBlur={handleBlur}>
+                {ANNOUNCEMENT_PRIORITIES.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 

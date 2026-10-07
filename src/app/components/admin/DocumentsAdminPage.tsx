@@ -11,6 +11,7 @@ import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-hel
 import * as documentService from '../../../services/document.service'
 import { logError } from '../../../lib/logger'
 import { getDocumentSignedUrl as getStorageSignedUrl } from '../../../lib/storage'
+import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
 
 export interface DocumentsAdminPageProps {
   onLogout: () => void
@@ -207,7 +208,8 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       fetchItems()
     } catch (err) {
       logError(err, { action: 'saveDocument' })
-      showError('No se pudo guardar el documento. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo guardar el documento.'))
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     } finally {
       setSaving(false)
     }
@@ -219,7 +221,8 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
       showSuccess('Documento eliminado correctamente.')
     } catch (err) {
       logError(err, { action: 'deleteDocument' })
-      showError('No se pudo eliminar el documento. Intente de nuevo.')
+      showError(mensajeDeError(err, 'No se pudo eliminar el documento.'))
+      if (esErrorDeSesion(err)) setTimeout(() => window.location.reload(), 2500)
     }
     setDeleteConfirmId(null)
     fetchItems()
