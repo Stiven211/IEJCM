@@ -1,16 +1,19 @@
 # Política de Seguridad
 
+Este sitio pertenece al Colegio José Celestino Mutis.
+
 ## Reportar un fallo
 
 Si encuentras un problema de seguridad en este sitio, repórtalo por correo a
-**kurregorojas@gmail.com** con:
+**kurregorojas@gmail.com**, que es el contacto técnico del proyecto, con:
 
 - Qué se puede hacer y cómo se reproduce
 - Qué parte del sistema se ve afectada (sitio público, panel de administración)
 - Si es posible, capturas o pasos exactos
 
-**No abras un issue público** para reportar un fallo. Los issues son visibles
-para cualquiera, y un problema sin corregir queda expuesto mientras se
+Si algo se puede arreglar y no depende de permisos, dilo también en el correo.
+Lo que **no** debes hacer es abrir un issue público: los issues son visibles
+para cualquiera y un problema sin corregir queda expuesto mientras se
 resuelve.
 
 ## Qué se considera un fallo

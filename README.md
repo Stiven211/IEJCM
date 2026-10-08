@@ -181,9 +181,9 @@ set default_transaction_read_only = 'off';
 
 ## Propiedad y licencia
 
-El código de este repositorio es propiedad de su autor y fue desarrollado para
-el Colegio José Celestino Mutis. Ver [LICENSE](LICENSE). No se concede permiso
-para reutilizarlo sin autorización escrita.
+El código de este repositorio es propiedad del Colegio José Celestino Mutis y
+fue desarrollado para el colegio. Ver [LICENSE](LICENSE). No se concede permiso
+para reutilizarlo sin autorización escrita de la dirección.
 
 Verifiqué que ninguna credencial sensible está en el repositorio: `.env` está
 en `.gitignore`, `.env.example` está vacío y la única clave que llega al
