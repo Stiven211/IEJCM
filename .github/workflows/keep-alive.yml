@@ -4,9 +4,10 @@ name: Supabase keep-alive
 # la base de datos, y el aviso le llega por email al owner. Este workflow genera
 # esa actividad para que el proyecto no se suspenda solo.
 #
-# La alternativa real es el plan Pro (USD 10/mes), que no se pausa. Esto es un
-# parche gratis y tiene una ventana de fallo: si el workflow deja de correr, el
-# proyecto se pausa y el sitio en Vercel se cae hasta que se restaure a mano.
+# La alternativa real es el plan Pro (USD 25/mes), que no se pausa, trae
+# respaldos diarios y escala el disco solo. Este es un parche gratis y tiene una
+# ventana de fallo: si el workflow deja de correr, el proyecto se pausa y el
+# sitio en Vercel se cae hasta que se restaure a mano.
 on:
   schedule:
     # 04:17 UTC a proposito: los cron de GitHub se ejecutan al inicio de la hora
@@ -93,5 +94,91 @@ jobs:
             echo "::warning::El sitio desplegado respondio ${codigo}. El keep-alive de Supabase si funciono; el problema esta en Vercel."
           fi
 
+      # ---------------------------------------------------------------------
+      # Monitoreo de espacio.
+      #
+      # Va DESPUES de los cuatro ping de arriba y jamas puede hacerlos fallar:
+      # los ping usan la clave publishable y son lo unico que impide que el
+      # proyecto se pause. Si este paso se rompe, avisa; no tira el job.
+      #
+      # Por eso no hay `set -e` aca y todo fallo sale por `::warning::`.
+      #
+      # El plan Free NO avisa cuando se acerca al limite: cuando la base pasa
+      # de 500 MB Supabase la pone en solo lectura y el panel de administracion
+      # empieza a fallar con 'cannot execute INSERT in a read-only
+      # transaction'. Ahi ya no hay forma de guardar nada sin intervention
+      # manual. Ver README.md, seccion "Si algo se rompe".
+      #
+      # El ancho de banda no se puede medir desde aca: no hay ningun endpoint
+      # que lo devuelva. Eso se revisa en el panel de Supabase, en Usage.
+      - name: Medir espacio usado
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: rkbwrnapphehxvbatvia
+          # Limites del plan Free, verificados en la documentacion de Supabase.
+          LIMITE_DB_BYTES: '524288000'
+          LIMITE_STORAGE_BYTES: '1073741824'
+        run: |
+          set -uo pipefail
+
+          if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
+            echo "::warning::SUPABASE_ACCESS_TOKEN no esta configurado. No se pudo medir el espacio."
+            echo "Crear el secreto en Settings > Secrets and variables > Actions."
+            exit 0
+          fi
+
+          # El SQL va en una variable y el JSON se arma con jq: meter las
+          # comillas del SQL dentro de un JSON dentro de bash es fragile.
+          # Ojo: dentro de un bloque YAML `run: |` todas las lineas deben ir
+          # indentadas, asi que un heredoc con el cuerpo sin sangrar rompe el
+          # archivo. Por eso el SQL va en una sola linea.
+          SQL="select pg_database_size(current_database())::bigint as db_bytes, coalesce((select sum((metadata->>'size')::bigint) from storage.objects),0)::bigint as storage_bytes, coalesce((select count(*) from storage.objects),0)::bigint as storage_files"
+          jq -n --arg q "$SQL" '{query: $q}' > "${RUNNER_TEMP}/size.json"
+
+          # POST /v1/projects/{ref}/database/query es un endpoint en beta:
+          # puede cambiar o caerse. Por eso el paso no falla el job.
+          respuesta=$(curl -s --max-time 30 -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data-binary "@${RUNNER_TEMP}/size.json" 2>/dev/null) || respuesta=""
+
+          if [ -z "$respuesta" ]; then
+            echo "::warning::No hubo respuesta del endpoint de consulta. Se omite la medicion."
+            exit 0
+          fi
+
+          db_bytes=$(echo "$respuesta" | jq -r '.[0].db_bytes // empty' 2>/dev/null)
+          storage_bytes=$(echo "$respuesta" | jq -r '.[0].storage_bytes // empty' 2>/dev/null)
+          storage_files=$(echo "$respuesta" | jq -r '.[0].storage_files // empty' 2>/dev/null)
+
+          if [ -z "$db_bytes" ] || [ -z "$storage_bytes" ]; then
+            # 401/403 = token sin permiso o expirado. 404 = proyecto caido.
+            echo "::warning::Respuesta inesperada del endpoint: ${respuesta}"
+            echo "Si es 401 o 403, el token expiro o le falta el permiso Database."
+            exit 0
+          fi
+
+          pct() { awk -v a="$1" -v b="$2" 'BEGIN{ if (b>0) printf "%.1f", (a/b)*100; else print "0" }'; }
+          mib() { awk -v a="$1" 'BEGIN{ printf "%.1f", a/1048576 }'; }
+
+          db_pct=$(pct "$db_bytes" "$LIMITE_DB_BYTES")
+          st_pct=$(pct "$storage_bytes" "$LIMITE_STORAGE_BYTES")
+          echo "Base de datos: ${db_bytes} bytes ($(mib "$db_bytes") MiB de $(mib "$LIMITE_DB_BYTES") MiB, ${db_pct}%)"
+          echo "Storage:       ${storage_bytes} bytes ($(mib "$storage_bytes") MiB de $(mib "$LIMITE_STORAGE_BYTES") MiB, ${st_pct}%, ${storage_files} archivos)"
+
+          # 50% aviso temprano, 70% falla el job para que quede en rojo en GitHub.
+          for par in "Base de datos:${db_pct}:${db_bytes}" "Storage:${st_pct}:${storage_bytes}"; do
+            nombre="${par%%:*}"; resto="${par#*:}"; valor="${resto%%:*}"; bytes="${resto#*:}"
+            awk -v v="$valor" 'BEGIN{ exit !(v >= 70) }' && {
+              echo "::error::${nombre} en ${valor}% del limite del plan Free. En 100% Supabase deja de aceptar escrituras."
+              exit 1
+            }
+            awk -v v="$valor" 'BEGIN{ exit !(v >= 50) }' && \
+              echo "::warning::${nombre} ya va en ${valor}% (${bytes} bytes)."
+          done
+
+          echo "Espacio dentro de limites."
+
       - name: Resumen
-        run: echo "Proyecto Supabase activo."
+        run: echo "Proyecto Supabase activo y dentro de limites de espacio."
