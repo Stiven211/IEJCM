@@ -62,6 +62,11 @@ jobs:
       # contenido, y 'iejson' no lo es.
       - name: Generar el snapshot
         run: |
+          # GitHub ejecuta estos pasos con `bash -e {0}`, visible en el log.
+          # Eso aborta el paso ante CUALQUIER comando que devuelva un codigo
+          # distinto de 0, y `set -e` se desactiva a proposito: el paso decide
+          # cuando fallar con `exit 1` y un mensaje, no de forma silenciosa.
+          set +e
           set -uo pipefail
 
           if [ -z "${SUPABASE_ACCESS_TOKEN:-}" ]; then
@@ -95,24 +100,30 @@ jobs:
               -H "Content-Type: application/json" \
               --data-binary "@${RUNNER_TEMP}/q.json" 2>/dev/null) || respuesta=""
 
-            js=$(echo "$respuesta" | jq -r '.[0].js // empty' 2>/dev/null)
+            # `|| true` porque jq sale con codigo distinto de 0 si la respuesta
+            # no es lo esperado, y el chequeo de la linea siguiente ya decide
+            # que hacer en ese caso con un mensaje claro.
+            js=$(printf '%s' "$respuesta" | jq -r '.[0].js // empty' 2>/dev/null || true)
 
             if [ -z "$js" ]; then
               echo "::error::No se pudo leer la tabla ${tabla}. Respuesta: ${respuesta}"
               exit 1
             fi
 
-            filas=$(echo "$js" | jq -r 'if type == "array" then length else -1 end' 2>/dev/null)
+            filas=$(printf '%s' "$js" | jq -r 'if type == "array" then length else -1 end' 2>/dev/null || true)
 
-            # El delimitador tiene que aparecer un numero par de veces: si el
-            # contenido trajera el cierre adentro, el bloque quedaria truncado
-            # y la restauracion fallaria justo cuando mas falta.
-            cierres=$(echo "$js" | grep -o -F '$iejson$' | wc -l)
             if [ "$filas" = "-1" ] || [ -z "$filas" ]; then
               echo "::error::El JSON de ${tabla} no es un array valido"
               exit 1
             fi
-            if [ "$cierres" -ne 0 ]; then
+
+            # Cuenta si el contenido trae el delimitador de cierre. grep sale
+            # con codigo 1 cuando NO encuentra nada, que es el caso normal: el
+            # delimitador solo apareceria si un aviso escribiera literalmente
+            # la palabra $iejson$. Con `|| true` ese 1 no se lleva por delante
+            # el paso; el conteo que importa es que sea cero.
+            cierres=$(printf '%s' "$js" | grep -o -F '$iejson$' | wc -l | tr -d ' ' || true)
+            if [ "${cierres:-0}" -ne 0 ]; then
               echo "::error::El contenido de ${tabla} contiene el delimitador \$iejson\$; se eligio mal el delimitador"
               exit 1
             fi
@@ -140,6 +151,7 @@ jobs:
       # justo cuando mas apuros estan.
       - name: Verificar que el snapshot esta completo
         run: |
+          set +e
           set -uo pipefail
           fecha=$(date -u +%Y-%m-%d)
           destino="supabase/backups/${fecha}.sql"
@@ -171,6 +183,7 @@ jobs:
       # principio de semana aunque el respaldo diario se haya fallado.
       - name: Limpiar respaldos viejos
         run: |
+          set +e
           set -uo pipefail
           dia_semana=$(date -u +%u)
           if [ "$dia_semana" = "1" ]; then
@@ -183,6 +196,7 @@ jobs:
 
       - name: Confirmar el respaldo
         run: |
+          set +e
           set -uo pipefail
           fecha=$(date -u +%Y-%m-%d)
           destino="supabase/backups/${fecha}.sql"
