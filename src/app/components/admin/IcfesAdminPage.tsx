@@ -242,7 +242,7 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
             </div>
             <div style={{ fontSize: '13px', color: '#3A4E3A', lineHeight: 1.55 }}>
               El interruptor de la sección está en Información Institucional, bloque "Sección de ICFES".
-              While esté apagada, los estudiantes quedan guardados pero el sitio no los muestra.
+              Mientras esté apagada, los estudiantes quedan guardados pero el sitio no los muestra.
             </div>
           </div>
 
