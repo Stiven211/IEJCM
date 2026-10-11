@@ -154,6 +154,21 @@ create table if not exists public.gallery (
   active      boolean default true
 );
 
+-- Los destacados del ICFES van aparte de school_info porque school_info es de
+-- una sola fila y esta lista crece. Se muestran ordenados por puntaje.
+create table if not exists public.icfes_students (
+  id         uuid primary key default gen_random_uuid(),
+  full_name  text    not null,
+  score      numeric(6,2) not null check (score >= 0 and score <= 500),
+  grade      text check (grade is null or grade in ('11-1', '11-2', '11-3')),
+  photo_url  text,
+  active     boolean not null default true,
+  created_at timestamptz default now()
+);
+
+create index if not exists icfes_students_score_idx
+  on public.icfes_students (score desc);
+
 -- school_info es un singleton logico: la app lee la primera fila con
 -- limit(1).maybeSingle(). Ver TASK-000 H-010: no hay restriccion que lo impida.
 create table if not exists public.school_info (
@@ -174,7 +189,11 @@ create table if not exists public.school_info (
   hero_badge_color text default '#006400',
   hero_badge       text default '',
   hero_title       text,
-  hero_subtitle    text
+  hero_subtitle    text,
+  -- Encendido manual de la seccion de ICFES. False a proposito: instalado no
+  -- significa publicado.
+  icfes_visible    boolean not null default false,
+  icfes_text       text
 );
 
 -- La PK en user_id ya garantiza unicidad: es lo que hace que
@@ -193,6 +212,7 @@ alter table public.contact_messages  enable row level security;
 alter table public.documents         enable row level security;
 alter table public.events            enable row level security;
 alter table public.gallery           enable row level security;
+alter table public.icfes_students    enable row level security;
 alter table public.school_info       enable row level security;
 alter table public.user_roles        enable row level security;
 
@@ -282,6 +302,16 @@ create policy "Admins can update gallery" on public.gallery
 drop policy if exists "Admins can delete gallery" on public.gallery;
 create policy "Admins can delete gallery" on public.gallery
   for delete to authenticated using (is_admin());
+
+-- El filtro active = true va en la politica, no solo en el cliente: con
+-- using (true) un curl anon leeria los estudiantes ocultos.
+drop policy if exists "Public can read active icfes students" on public.icfes_students;
+create policy "Public can read active icfes students" on public.icfes_students
+  for select to public using (active = true);
+
+drop policy if exists "Admins can manage icfes students" on public.icfes_students;
+create policy "Admins can manage icfes students" on public.icfes_students
+  for all to authenticated using (is_admin()) with check (is_admin());
 
 drop policy if exists "Public read school info" on public.school_info;
 create policy "Public read school info" on public.school_info

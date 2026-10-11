@@ -37,6 +37,8 @@ interface FormData {
   hero_badge_color: string
   nit: string
   dane_code: string
+  icfes_visible: boolean
+  icfes_text: string
 }
 
 const EMPTY_FORM: FormData = {
@@ -58,6 +60,9 @@ const EMPTY_FORM: FormData = {
   hero_badge_color: '#991B1B',
   nit: '',
   dane_code: '',
+  // False a proposito: instalar el panel no publica la seccion sola.
+  icfes_visible: false,
+  icfes_text: '',
 }
 
 const BADGE_STATES = {
@@ -111,6 +116,8 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
           hero_subtitle: data.hero_subtitle || '',
           hero_badge: data.hero_badge || '',
           hero_badge_color: data.hero_badge_color || '#991B1B',
+          icfes_visible: data.icfes_visible === true,
+          icfes_text: data.icfes_text || '',
         })
       }
     } catch (err) {
@@ -337,6 +344,77 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
                       {formData.hero_badge || 'Sin etiqueta'}
                     </span>
                   </div>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: '20px', marginTop: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '6px' }}>Sección de ICFES (Saber 11)</label>
+                  <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#6B7280', lineHeight: 1.55 }}>
+                    Enciéndela durante la temporada del ICFES. Al encenderla aparecen un aviso en la
+                    portada, el link en el menú y la página de los mejores estudiantes. Al apagarla,
+                    desaparece todo de una vez.
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: formData.icfes_visible ? '16px' : '0' }}>
+                    {([
+                      { valor: false, label: 'Apagada', texto: 'No se muestra nada en el sitio.' },
+                      { valor: true, label: 'Encendida', texto: 'Aviso en portada, link en el menú y página de mejores estudiantes.' },
+                    ] as { valor: boolean; label: string; texto: string }[]).map(op => {
+                      const activo = formData.icfes_visible === op.valor
+                      return (
+                        <button
+                          key={op.label}
+                          type="button"
+                          aria-pressed={activo}
+                          onClick={() => updateField('icfes_visible', op.valor)}
+                          style={{
+                            flex: '1 1 180px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '9px',
+                            padding: '11px 14px',
+                            borderRadius: '9px',
+                            border: activo ? '2px solid #006400' : '2px solid rgba(0,0,0,0.1)',
+                            backgroundColor: activo ? '#E8F5E9' : '#FFFFFF',
+                            color: '#1A1A1A',
+                            fontSize: '13px',
+                            fontWeight: activo ? 700 : 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            transition: 'all 0.2s',
+                            textAlign: 'left',
+                          }}
+                        >
+                          <span style={{ width: 11, height: 11, borderRadius: '50%', backgroundColor: op.valor ? '#006400' : '#9CA3AF', flexShrink: 0 }} />
+                          <span style={{ flex: 1 }}>
+                            {op.label}
+                            <span style={{ display: 'block', fontSize: '11px', fontWeight: 400, color: '#6B7280', marginTop: '2px' }}>
+                              {op.texto}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {formData.icfes_visible && (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>
+                        Texto para los estudiantes y familias
+                      </label>
+                      <AutoTextarea
+                        value={formData.icfes_text}
+                        onChange={v => updateField('icfes_text', v)}
+                        placeholder={'Escribe lo que el colegio quiera informar. Ejemplo:\n\nLa presentación del ICFES 2027 será el sábado 15 de agosto.\nLa inscripción se hace en la secretaría, de 8:00 a 12:00.\nDeben traer la cédula del menor y el consentimiento firmado.'}
+                        minRows={6}
+                        onFocus={handleFocus}
+                        onBlur={handleBlur}
+                        inputStyle={inputStyle}
+                      />
+                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>
+                        Sale tal cual en la página del ICFES, arriba de los estudiantes. Cada año cambia lo
+                        que hay que decir, por eso es un texto libre y no una plantilla.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1A1A1A', marginBottom: '8px' }}>Dirección</label>

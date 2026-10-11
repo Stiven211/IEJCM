@@ -23,6 +23,8 @@ const DocumentsAdminPage = lazy(() => import('./components/admin/DocumentsAdminP
 const ContactMessagesAdminPage = lazy(() => import('./components/admin/ContactMessagesAdminPage').then(m => ({ default: m.ContactMessagesAdminPage })))
 const AnnouncementsPage = lazy(() => import('./components/AnnouncementsPage').then(m => ({ default: m.AnnouncementsPage })))
 const GalleryPage = lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })))
+const IcfesPage = lazy(() => import('./components/IcfesPage').then(m => ({ default: m.IcfesPage })))
+const IcfesAdminPage = lazy(() => import('./components/admin/IcfesAdminPage').then(m => ({ default: m.IcfesAdminPage })))
 
 function LoadingFallback() {
   return (
@@ -116,6 +118,7 @@ export default function App() {
         <Route path="/avisos" element={<Layout><Suspense fallback={<LoadingFallback />}><AnnouncementsPage /></Suspense></Layout>} />
         <Route path="/galeria" element={<Layout><Suspense fallback={<LoadingFallback />}><GalleryPage /></Suspense></Layout>} />
         <Route path="/documentos" element={<Layout><DocumentsPage /></Layout>} />
+        <Route path="/icfes" element={<Layout><Suspense fallback={<LoadingFallback />}><IcfesPage /></Suspense></Layout>} />
         <Route path="/contacto" element={<Layout><ContactPage /></Layout>} />
         <Route
           path="/admin"
@@ -148,6 +151,18 @@ export default function App() {
               ? (
                 <ProtectedAdminRoute>
                   <Suspense fallback={<LoadingFallback />}><GalleryAdminPage onLogout={handleLogout} adminUser={adminUser} /></Suspense>
+                </ProtectedAdminRoute>
+              )
+              : <AdminLogin />
+          }
+        />
+        <Route
+          path="/admin/icfes"
+          element={
+            user
+              ? (
+                <ProtectedAdminRoute>
+                  <Suspense fallback={<LoadingFallback />}><IcfesAdminPage onLogout={handleLogout} adminUser={adminUser} /></Suspense>
                 </ProtectedAdminRoute>
               )
               : <AdminLogin />

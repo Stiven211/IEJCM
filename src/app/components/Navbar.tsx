@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router'
 import { Menu, X, GraduationCap } from 'lucide-react'
 import * as schoolInfoService from '../../services/schoolInfo.service'
@@ -11,6 +11,8 @@ const NAV_LINKS = [
   { to: '/#eventos', label: 'Eventos', isHash: true },
   { to: '/#galeria', label: 'Galería', isHash: true },
   { to: '/documentos', label: 'Documentos' },
+  // El link de ICFES no va aqui a proposito: solo existe cuando el
+  // administrador encendio la seccion, y eso se decide en el componente.
   { to: '/#contacto', label: 'Contacto', isHash: true },
 ]
 
@@ -175,6 +177,19 @@ export function Navbar() {
     return location.pathname.startsWith(to)
   }
 
+  /**
+   * El link de ICFES se agrega solo si la seccion esta encendida. Si se dejara
+   * fijo en NAV_LINKS, el menu prometeria una pagina que responde "no
+   * disponible" la mayor parte del ano.
+   */
+  const navLinks = useMemo(() => {
+    if (schoolInfo?.icfes_visible === true) {
+      const base = NAV_LINKS.filter(l => l.label !== 'Documentos')
+      return [...base, { to: '/icfes', label: 'ICFES' }, ...NAV_LINKS.filter(l => l.label === 'Documentos')]
+    }
+    return NAV_LINKS
+  }, [schoolInfo])
+
   return (
     <header style={{
       position: 'sticky',
@@ -227,7 +242,7 @@ export function Navbar() {
         </Link>
 
         <div className="desktop-nav" style={{ alignItems: 'center', gap: '4px' }}>
-          {NAV_LINKS.map(link => {
+          {navLinks.map(link => {
             const active = isActive(link.to, link.isHash)
             return (
               <button
@@ -295,7 +310,7 @@ export function Navbar() {
             animation: 'fadeInDown 200ms cubic-bezier(0.4, 0, 0.2, 1)',
           }}
         >
-          {NAV_LINKS.map(link => (
+          {navLinks.map(link => (
             <button
               key={link.to}
               onClick={() => handleNavClick(link.to, link.isHash)}

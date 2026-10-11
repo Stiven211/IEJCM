@@ -7,6 +7,7 @@ import { HomeEvents } from './home/HomeEvents'
 import { HomeGallery } from './home/HomeGallery'
 import { HomeCTA } from './home/HomeCTA'
 import { HomeContact } from './home/HomeContact'
+import { HomeIcfesNotice } from './home/HomeIcfesNotice'
 import type { Event } from '../types'
 import * as eventService from '../../services/event.service'
 import * as galleryService from '../../services/gallery.service'
@@ -22,6 +23,7 @@ const MemoizedHomeAbout = memo(HomeAbout)
 const MemoizedHomeEvents = memo(HomeEvents)
 const MemoizedHomeGallery = memo(HomeGallery)
 const MemoizedHomeCTA = memo(HomeCTA)
+const MemoizedHomeIcfesNotice = memo(HomeIcfesNotice)
 const MemoizedHomeContact = memo(HomeContact)
 
 export function HomePage() {
@@ -238,6 +240,12 @@ export function HomePage() {
         announcements={activeAnnouncements}
         onViewAll={() => navigate('/avisos')}
       />
+
+      {/* Aviso del ICFES. Solo se renderiza si el administrador encendio la
+          seccion: apagada, no queda ni un hueco ni un borde en la portada. */}
+      {schoolInfo?.icfes_visible === true && (
+        <MemoizedHomeIcfesNotice onViewMore={() => navigate('/icfes')} />
+      )}
 
       <MemoizedHomeAbout
         schoolInfo={schoolInfo}

@@ -57,7 +57,31 @@ export interface SchoolInfo {
   nit: string
   /** Codigo DANE. El footer lo omite si viene vacio. */
   dane_code: string
+  /**
+   * Si la seccion de ICFES esta publicada. La enciende y apaga el
+   * administrador desde Informacion Institucional.
+   */
+  icfes_visible: boolean
+  /** Texto libre del colegio sobre la temporada de ICFES. */
+  icfes_text: string
   updated_at: string
+}
+
+/** Grados de undécimo del colegio. El CHECK de la base acepta solo estos o vacio. */
+export const ICFES_GRADES = ['11-1', '11-2', '11-3'] as const
+
+export type IcfesGrade = (typeof ICFES_GRADES)[number]
+
+export interface IcfesStudent {
+  id: string
+  full_name: string
+  /** Puntaje del Saber 11, de 0 a 500. Viene como string desde Postgres. */
+  score: number | string
+  /** Grado; puede venir vacio. */
+  grade?: IcfesGrade | null
+  photo_url?: string | null
+  active: boolean
+  created_at?: string
 }
 
 export interface Document {
