@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import {
-  LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen,
-  Search, Upload, FileText,
-} from 'lucide-react'
+import { Search, Upload } from 'lucide-react'
 import * as eventService from '../../services/event.service'
 import type { Event } from '../types'
 import { CATEGORY_LABELS } from '../data/categories'
@@ -19,6 +16,7 @@ import { validateImageFile, deleteFromStorage, toStoragePath } from '../../lib/s
 import { ResilientImage } from './ui/ResilientImage'
 import { AdminOverview } from './admin/AdminOverview'
 import { mensajeDeError } from '../lib/adminErrors'
+import { ADMIN_NAV_SECTIONS } from '../lib/adminNav'
 import { aFechaInput } from '../lib/dateInput'
 
 interface AdminDashboardProps {
@@ -271,14 +269,7 @@ export function AdminDashboard({ onLogout, adminUser, eventsOnly = false }: Admi
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

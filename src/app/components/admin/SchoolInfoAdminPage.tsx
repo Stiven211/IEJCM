@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { Save, BookOpen, LayoutDashboard, CalendarDays, Image, Megaphone, Upload, FileText } from 'lucide-react'
+import { Save, Upload } from 'lucide-react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import { AdminStatusMessages } from './AdminStatusMessages'
@@ -10,6 +10,7 @@ import { inputStyle, handleFocus, handleBlur } from '../../../utils/admin-ui-hel
 import { logError } from '../../../lib/logger'
 import { validateImageFile, toStoragePath, deleteFromStorage, resolveAssetUrl } from '../../../lib/storage'
 import { AutoTextarea } from './AutoTextarea'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { ResilientImage } from '../ui/ResilientImage'
 
 
@@ -223,14 +224,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
     return (
       <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
         <AdminSidebar
-          sections={[
-            { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-            { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-            { label: 'Galería', icon: Image, to: '/admin/gallery' },
-            { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-            { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-            { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-          ]}
+          sections={ADMIN_NAV_SECTIONS}
           user={adminUser!}
           onLogout={onLogout}
         />
@@ -242,14 +236,7 @@ export function SchoolInfoAdminPage({ onLogout, adminUser }: SchoolInfoAdminPage
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

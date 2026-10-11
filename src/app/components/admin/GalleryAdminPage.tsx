@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { Image, Upload, LayoutDashboard, CalendarDays, Megaphone, BookOpen, FileText } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { AdminSidebar } from '../admin/AdminSidebar'
 import { AdminHeader } from '../admin/AdminHeader'
 import { AdminDataTable } from '../admin/AdminDataTable'
@@ -11,6 +11,7 @@ import * as galleryService from '../../../services/gallery.service'
 import { logError } from '../../../lib/logger'
 import { validateImageFile, deleteFromStorage, toStoragePath } from '../../../lib/storage'
 import { ResilientImage } from '../ui/ResilientImage'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { mensajeDeError } from '../../lib/adminErrors'
 
 export interface GalleryAdminPageProps {
@@ -203,14 +204,7 @@ export function GalleryAdminPage({ onLogout, adminUser }: GalleryAdminPageProps)
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

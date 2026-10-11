@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Archive, Check, LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen, FileText, Trash2 } from 'lucide-react'
+import { Archive, Check, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
@@ -8,6 +8,7 @@ import { LoadErrorState } from '../ui/LoadErrorState'
 import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import * as contactService from '../../../services/contact.service'
 import type { ContactMessage, ContactMessageStatus } from '../../types'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { logError } from '../../../lib/logger'
 
 export interface ContactMessagesAdminPageProps {
@@ -73,14 +74,7 @@ export function ContactMessagesAdminPage({ onLogout, adminUser }: ContactMessage
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

@@ -1,13 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import {
-  LayoutDashboard,
-  CalendarDays,
-  Image,
-  Megaphone,
-  BookOpen,
-  FileText,
-  Award,
 } from 'lucide-react'
 import * as icfesService from '../../../services/icfes.service'
 import type { IcfesGrade } from '../../types'
@@ -20,6 +13,7 @@ import { AdminDataTable } from './AdminDataTable'
 import { AdminStatusMessages } from './AdminStatusMessages'
 import { useAdminStatus } from '../../../hooks/useAdminStatus'
 import { ResilientImage } from '../ui/ResilientImage'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { mensajeDeError, esErrorDeSesion } from '../../lib/adminErrors'
 
 interface IcfesAdminPageProps {
@@ -217,15 +211,7 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAF8' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'ICFES', icon: Award, to: '/admin/icfes' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

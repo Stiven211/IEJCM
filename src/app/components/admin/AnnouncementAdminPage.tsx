@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen, FileText } from 'lucide-react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import { AdminDataTable } from './AdminDataTable'
@@ -17,6 +16,7 @@ import {
   normalizarPrioridadAnnouncement,
 } from '../../data/announcementCategories'
 import { mensajeDeError } from '../../lib/adminErrors'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { aFechaInput } from '../../lib/dateInput'
 
 export interface AnnouncementAdminPageProps {
@@ -172,14 +172,7 @@ const handleSave = async () => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />

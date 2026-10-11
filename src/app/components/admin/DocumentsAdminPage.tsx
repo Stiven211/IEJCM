@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { FileText, Upload, LayoutDashboard, CalendarDays, Image, Megaphone, BookOpen, Download } from 'lucide-react'
+import { Upload, Download } from 'lucide-react'
 import { AdminSidebar } from './AdminSidebar'
 import { AdminHeader } from './AdminHeader'
 import { AdminDataTable } from '../admin/AdminDataTable'
@@ -12,6 +12,7 @@ import * as documentService from '../../../services/document.service'
 import { logError } from '../../../lib/logger'
 import { getDocumentSignedUrl as getStorageSignedUrl } from '../../../lib/storage'
 import { mensajeDeError } from '../../lib/adminErrors'
+import { ADMIN_NAV_SECTIONS } from '../../lib/adminNav'
 import { aFechaInput, deFechaInput } from '../../lib/dateInput'
 
 export interface DocumentsAdminPageProps {
@@ -239,14 +240,7 @@ export function DocumentsAdminPage({ onLogout, adminUser }: DocumentsAdminPagePr
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#F0F4F0' }}>
       <AdminSidebar
-        sections={[
-          { label: 'Dashboard', icon: LayoutDashboard, to: '/admin' },
-          { label: 'Eventos', icon: CalendarDays, to: '/admin/events' },
-          { label: 'Galería', icon: Image, to: '/admin/gallery' },
-          { label: 'Avisos', icon: Megaphone, to: '/admin/announcements' },
-          { label: 'Información Institucional', icon: BookOpen, to: '/admin/school-info' },
-          { label: 'Documentos', icon: FileText, to: '/admin/documents' },
-        ]}
+        sections={ADMIN_NAV_SECTIONS}
         user={adminUser!}
         onLogout={onLogout}
       />
