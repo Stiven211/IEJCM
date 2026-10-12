@@ -25,23 +25,36 @@ interface FormData {
   full_name: string
   score: string
   grade: string
+  exam_year: string
   active: boolean
 }
+
+/**
+ * Año en curso por defecto. El ICFES Saber 11 se presenta una vez al año, así
+ * que casi siempre es el correcto y se puede cambiar si se está cargando una
+ * temporada anterior.
+ */
+const ANIO_ACTUAL = new Date().getFullYear()
 
 const EMPTY_FORM: FormData = {
   full_name: '',
   score: '',
   grade: '',
+  exam_year: String(ANIO_ACTUAL),
   active: true,
 }
+
+/** Años que el panel ofrece: el actual y los cinco anteriores. */
+const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL - i)
 
 // image/* en vez de una lista cerrada: en Android e iOS una lista muy concreta
 // hace que el selector no deje elegir la foto de la galeria del telefono. El
 // filtro real lo hace validateImageFile.
 const IMAGE_INPUT_ACCEPT = 'image/*,.jpg,.jpeg,.png,.webp,.heic,.heif'
 
-function punto(value: number | string | null | undefined): string {
-  return Number(value || 0).toFixed(1)
+/** Puntaje como entero: "356", nunca "356.0". */
+function entero(value: number | string | null | undefined): string {
+  return String(Math.round(Number(value || 0)))
 }
 
 function inicial(nombre: string | null | undefined): string {
@@ -118,8 +131,9 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
     setEditingItem(item)
     setFormData({
       full_name: item.full_name,
-      score: String(item.score ?? ''),
+      score: entero(item.score),
       grade: item.grade || '',
+      exam_year: item.exam_year ? String(item.exam_year) : '',
       active: item.active !== false,
     })
     clearPendingPhoto()
@@ -150,7 +164,11 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
       // base lo espera numerico; mandarlo crudo daria un 400 sin explicar.
       const score = Number(formData.score)
       if (formData.score.trim() === '' || Number.isNaN(score)) {
-        showError('El puntaje debe ser un número entre 0 y 500.')
+        showError('El puntaje debe ser un número entero entre 0 y 500.')
+        return
+      }
+      if (!Number.isInteger(score)) {
+        showError(`El puntaje ${score} tiene decimales. El Saber 11 se califica con números enteros.`)
         return
       }
       if (score < 0 || score > 500) {
@@ -171,6 +189,7 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
         full_name: formData.full_name,
         score,
         grade: (formData.grade || null) as IcfesGrade | null,
+        exam_year: formData.exam_year ? Number(formData.exam_year) : null,
         photo_url: photoPath,
         active: formData.active,
       }
@@ -306,7 +325,16 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
                       fontFamily: 'ui-monospace, monospace',
                     }}
                   >
-                    {punto(item.score)}
+                    {entero(item.score)}
+                  </div>
+                ),
+              },
+              {
+                key: 'exam_year',
+                header: 'Año',
+                render: (item: icfesService.IcfesStudent) => (
+                  <div style={{ fontSize: '14px', color: '#3A4E3A' }}>
+                    {item.exam_year ?? '-'}
                   </div>
                 ),
               },
@@ -480,7 +508,7 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
                 placeholder="0 a 500"
                 min={0}
                 max={500}
-                step="0.1"
+                step={1}
                 style={{
                   width: '100%',
                   padding: '11px 12px',
@@ -490,6 +518,9 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
                   fontFamily: 'inherit',
                 }}
               />
+              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>
+                Entero, sin decimales.
+              </p>
             </div>
             <div>
               <label
@@ -501,11 +532,11 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
                   marginBottom: '6px',
                 }}
               >
-                Grado
+                Año del examen
               </label>
               <select
-                value={formData.grade}
-                onChange={(e) => updateField('grade', e.target.value)}
+                value={formData.exam_year}
+                onChange={(e) => updateField('exam_year', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '11px 12px',
@@ -516,14 +547,51 @@ export function IcfesAdminPage({ onLogout, adminUser }: IcfesAdminPageProps) {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">Sin especificar</option>
-                {ICFES_GRADES.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
+                <option value="">Sin año</option>
+                {ANIOS_DISPONIBLES.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
                   </option>
                 ))}
               </select>
+              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#6B7280' }}>
+                Separa las temporadas para poder compararlas.
+              </p>
             </div>
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#1A1A1A',
+                marginBottom: '6px',
+              }}
+            >
+              Grado
+            </label>
+            <select
+              value={formData.grade}
+              onChange={(e) => updateField('grade', e.target.value)}
+              style={{
+                width: '100%',
+                padding: '11px 12px',
+                border: '1px solid rgba(0,0,0,0.14)',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="">Sin especificar</option>
+              {ICFES_GRADES.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
           </div>
 
           <label

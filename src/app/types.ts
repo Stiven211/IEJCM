@@ -75,8 +75,10 @@ export type IcfesGrade = (typeof ICFES_GRADES)[number]
 export interface IcfesStudent {
   id: string
   full_name: string
-  /** Puntaje del Saber 11, de 0 a 500. Viene como string desde Postgres. */
-  score: number | string
+  /** Puntaje del Saber 11, entero de 0 a 500. */
+  score: number
+  /** Año del examen. Puede venir vacio si el estudiante se cargo sin año. */
+  exam_year?: number | null
   /** Grado; puede venir vacio. */
   grade?: IcfesGrade | null
   photo_url?: string | null

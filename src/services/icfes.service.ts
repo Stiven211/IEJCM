@@ -15,12 +15,49 @@ function withResolvedPhoto(student: IcfesStudent): IcfesStudent {
 }
 
 /**
+ * Agrupa los estudiantes por año de examen, del año más reciente al más
+ * antiguo, y dentro de cada año de mayor a menor puntaje.
+ *
+ * Devuelve el primer estudiante de cada grupo como `mejor`, que es el que la
+ * página pública destaca.
+ */
+export interface IcfesGrupo {
+  year: number | null
+  students: IcfesStudent[]
+  mejor: IcfesStudent
+}
+
+export function agruparPorAno(estudiantes: IcfesStudent[]): IcfesGrupo[] {
+  const porAno = new Map<number | null, IcfesStudent[]>()
+
+  for (const e of estudiantes) {
+    const clave = e.exam_year ?? null
+    const lista = porAno.get(clave)
+    if (lista) lista.push(e)
+    else porAno.set(clave, [e])
+  }
+
+  return [...porAno.entries()]
+    .sort((a, b) => {
+      // Sin año va de último, para que no separe los años que sí tienen.
+      if (a[0] === null) return 1
+      if (b[0] === null) return -1
+      return b[0] - a[0]
+    })
+    .map(([year, lista]) => {
+      const ordenados = [...lista].sort(
+        (x, y) => Number(y.score || 0) - Number(x.score || 0),
+      )
+      return { year, students: ordenados, mejor: ordenados[0] }
+    })
+}
+
+/**
  * Limpia y valida los datos antes de mandarlos a la base.
  *
  * El puntaje llega como string desde los <input>, y la base lo espera
- * numerico: mandarlo crudo falla con un 400 que el administrador no puede
- * interpretar. Convertirlo aqui y avisar con un mensaje claro es la misma
- * idea que se aplico en los tipos de aviso.
+ * entero: mandarlo crudo falla con un 400 que el administrador no puede
+ * interpretar.
  *
  * Devuelve null si todo esta bien, o el mensaje de error si no.
  */
@@ -28,14 +65,22 @@ export function validarEstudiante(payload: {
   full_name: string
   score: number | string
   grade?: IcfesGrade | null
+  exam_year?: number | null
 }): string | null {
   const nombre = (payload.full_name ?? '').trim()
   if (!nombre) return 'El estudiante necesita un nombre.'
 
   const puntaje = Number(payload.score)
   if (Number.isNaN(puntaje)) return 'El puntaje debe ser un número.'
+  if (!Number.isInteger(puntaje)) return 'El puntaje debe ser un número entero, sin decimales.'
   if (puntaje < 0 || puntaje > 500) {
     return `El puntaje ${puntaje} está fuera de la escala. El Saber 11 se califica de 0 a 500.`
+  }
+
+  if (payload.exam_year != null && payload.exam_year !== '') {
+    const ano = Number(payload.exam_year)
+    if (!Number.isInteger(ano)) return 'El año del examen debe ser un número entero.'
+    if (ano < 2000 || ano > 2100) return 'El año del examen debe estar entre 2000 y 2100.'
   }
 
   return null
@@ -45,12 +90,16 @@ function normalizePayload(payload: {
   full_name: string
   score: number | string
   grade?: IcfesGrade | null
+  exam_year?: number | null
   photo_url?: string | null
   active?: boolean
 }) {
+  const ano = payload.exam_year === '' || payload.exam_year == null ? null : Number(payload.exam_year)
+
   return {
     full_name: (payload.full_name ?? '').trim(),
-    score: Number(payload.score),
+    score: Math.round(Number(payload.score)),
+    exam_year: ano,
     grade: payload.grade || null,
     photo_url: payload.photo_url
       ? toStoragePath(STORAGE_BUCKET, payload.photo_url)
@@ -60,11 +109,15 @@ function normalizePayload(payload: {
 }
 
 /**
- * Estudiantes para el sitio publico. Solo los activos, y de mayor a menor
- * puntaje: es como el colegio presenta a los destacados.
+ * Estudiantes para el sitio publico. Solo los activos, ordenados por año y
+ * luego por puntaje, que es como se leen los resultados de varias temporadas.
  */
 export async function getIcfesStudents(activeOnly = true) {
-  let query = supabase.from('icfes_students').select('*').order('score', { ascending: false })
+  let query = supabase
+    .from('icfes_students')
+    .select('*')
+    .order('exam_year', { ascending: false, nullsFirst: false })
+    .order('score', { ascending: false })
 
   if (activeOnly) {
     query = query.eq('active', true)
@@ -84,6 +137,7 @@ export async function createIcfesStudent(payload: {
   full_name: string
   score: number | string
   grade?: IcfesGrade | null
+  exam_year?: number | null
   photo_url?: string | null
   active?: boolean
 }) {
@@ -110,6 +164,7 @@ export async function updateIcfesStudent(
     full_name: string
     score: number | string
     grade?: IcfesGrade | null
+    exam_year?: number | null
     photo_url?: string | null
     active?: boolean
   },

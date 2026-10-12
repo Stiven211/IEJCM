@@ -159,15 +159,17 @@ create table if not exists public.gallery (
 create table if not exists public.icfes_students (
   id         uuid primary key default gen_random_uuid(),
   full_name  text    not null,
-  score      numeric(6,2) not null check (score >= 0 and score <= 500),
+  score      integer not null check (score >= 0 and score <= 500),
+  exam_year  integer check (exam_year is null or exam_year between 2000 and 2100),
   grade      text check (grade is null or grade in ('11-1', '11-2', '11-3')),
   photo_url  text,
   active     boolean not null default true,
   created_at timestamptz default now()
 );
 
-create index if not exists icfes_students_score_idx
-  on public.icfes_students (score desc);
+-- El sitio agrupa por año y ordena por puntaje dentro de cada año.
+create index if not exists icfes_students_ano_score_idx
+  on public.icfes_students (exam_year desc nulls last, score desc);
 
 -- school_info es un singleton logico: la app lee la primera fila con
 -- limit(1).maybeSingle(). Ver TASK-000 H-010: no hay restriccion que lo impida.
